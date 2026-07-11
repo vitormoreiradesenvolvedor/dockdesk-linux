@@ -1,0 +1,56 @@
+{
+  "name": "dockdesk",
+  "productName": "DockDesk",
+  "version": "0.1.0",
+  "description": "Interface gráfica amigável para gerenciamento de containers Docker no Linux",
+  "license": "MIT",
+  "author": "Vitor Moreira <vitormoreiradesenvolvedor@gmail.com>",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build:renderer": "vite build",
+    "start": "npm run build:renderer && electron .",
+    "test:e2e": "npm run build:renderer && playwright test",
+    "dist": "npm run build:renderer && electron-builder --linux AppImage"
+  },
+  "dependencies": {
+    "dockerode": "^4.0.5",
+    "yaml": "^2.6.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3"
+  },
+  "build": {
+    "appId": "dev.vitormoreira.dockdesk",
+    "npmRebuild": false,
+    "productName": "DockDesk",
+    "files": [
+      "electron/**/*",
+      "dist/**/*"
+    ],
+    "asarUnpack": [
+      "node_modules/ssh2/**"
+    ],
+    "linux": {
+      "target": "AppImage",
+      "category": "Development",
+      "icon": "build/icon.png",
+      "synopsis": "Gerenciador gráfico de containers Docker"
+    },
+    "directories": {
+      "output": "release"
+    }
+  }
+}
