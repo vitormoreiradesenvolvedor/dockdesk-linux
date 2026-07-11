@@ -842,14 +842,29 @@ button { font-family: inherit; }
 
 .routine-list { display: flex; flex-direction: column; gap: 8px; }
 
+.routine-block {
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  transition: border-color 0.2s;
+}
+.routine-block.running { border-color: rgba(63, 185, 80, 0.5); }
+
 .routine-card {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: var(--panel);
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
   padding: 10px 14px;
+}
+
+.routine-terminal {
+  border-top: 1px solid var(--border-soft);
+  padding: 10px 14px 12px;
+}
+
+.routine-run.busy {
+  border-color: rgba(63, 185, 80, 0.6);
+  background: rgba(63, 185, 80, 0.25);
 }
 
 .routine-run {
