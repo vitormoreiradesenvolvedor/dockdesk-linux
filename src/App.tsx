@@ -6,6 +6,8 @@ import { ComposeView } from './components/ComposeView';
 import { ImagesView } from './components/ImagesView';
 import { VolumesView } from './components/VolumesView';
 import { NetworksView } from './components/NetworksView';
+import { I18nProvider } from './i18n';
+import { useTheme } from './hooks/useTheme';
 
 interface Toast {
   id: number;
@@ -16,7 +18,16 @@ interface Toast {
 let toastCounter = 0;
 
 export default function App() {
+  return (
+    <I18nProvider>
+      <AppShell />
+    </I18nProvider>
+  );
+}
+
+function AppShell() {
   const [view, setView] = useState<ViewName>('containers');
+  const { theme, toggleTheme } = useTheme();
   const [engine, setEngine] = useState<{ ok: boolean; version?: string; error?: string }>({
     ok: false,
   });
@@ -86,6 +97,8 @@ export default function App() {
         engine={engine}
         runningCount={containers.filter((c) => c.state === 'running').length}
         totalCount={containers.length}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
       <main className="main">
         {view === 'containers' && (

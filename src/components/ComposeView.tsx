@@ -9,20 +9,25 @@ import {
   Loader2,
   Layers,
   RefreshCw,
+  GripVertical,
 } from 'lucide-react';
 import type { ComposeProject, ComposeStatus } from '../global';
+import { useI18n } from '../i18n';
+import { useGroupOrder } from '../hooks/useGroupOrder';
 
 interface Props {
   notify: (text: string, kind?: 'error' | 'info') => void;
 }
 
 export function ComposeView({ notify }: Props) {
+  const { t } = useI18n();
   const [folders, setFolders] = useState<string[]>([]);
   const [projects, setProjects] = useState<ComposeProject[] | null>(null);
   const [statuses, setStatuses] = useState<Record<string, ComposeStatus>>({});
   const [runningAction, setRunningAction] = useState<Record<string, string>>({});
   const [consoles, setConsoles] = useState<Record<string, string>>({});
   const [scanning, setScanning] = useState(false);
+  const order = useGroupOrder('compose');
 
   const refresh = useCallback(async () => {
     setScanning(true);
@@ -38,11 +43,11 @@ export function ComposeView({ notify }: Props) {
       );
       setStatuses(Object.fromEntries(entries));
     } catch (err: any) {
-      notify(`Falha ao buscar projetos: ${err.message}`);
+      notify(t('compose_scan_fail', { msg: err.message }));
     } finally {
       setScanning(false);
     }
-  }, [notify]);
+  }, [notify, t]);
 
   useEffect(() => {
     refresh();
@@ -60,7 +65,10 @@ export function ComposeView({ notify }: Props) {
 
   async function runAction(project: ComposeProject, action: 'up' | 'down' | 'restart') {
     setRunningAction((r) => ({ ...r, [project.file]: action }));
-    setConsoles((c) => ({ ...c, [project.file]: `$ docker compose ${action === 'up' ? 'up -d' : action}\n` }));
+    setConsoles((c) => ({
+      ...c,
+      [project.file]: `$ docker compose ${action === 'up' ? 'up -d' : action}\n`,
+    }));
     try {
       const runId = await window.dockdesk.compose.run(project.file, action);
       const unsubOut = window.dockdesk.compose.onOutput(runId, (text) => {
@@ -75,7 +83,9 @@ export function ComposeView({ notify }: Props) {
           ...c,
           [project.file]:
             (c[project.file] ?? '') +
-            (exitCode === 0 ? '\n✔ Concluído com sucesso.\n' : `\n✖ Terminou com erro (código ${exitCode}).\n`),
+            (exitCode === 0
+              ? `\n${t('compose_done')}\n`
+              : `\n${t('compose_error', { code: exitCode })}\n`),
         }));
         setRunningAction((r) => {
           const next = { ...r };
@@ -86,7 +96,7 @@ export function ComposeView({ notify }: Props) {
         setStatuses((s) => ({ ...s, [project.file]: status }));
       });
     } catch (err: any) {
-      notify(`Falha ao executar compose ${action}: ${err.message}`);
+      notify(t('compose_action_fail', { action, msg: err.message }));
       setRunningAction((r) => {
         const next = { ...r };
         delete next[project.file];
@@ -95,23 +105,27 @@ export function ComposeView({ notify }: Props) {
     }
   }
 
+  const orderedProjects = projects
+    ? order
+        .sortKeys(projects.map((p) => p.file))
+        .map((file) => projects.find((p) => p.file === file)!)
+        .filter(Boolean)
+    : null;
+
   return (
     <section className="view" data-testid="compose-view">
       <div className="view-header">
         <div>
-          <h1 className="view-title">Projetos Compose</h1>
-          <div className="view-sub">
-            Adicione as pastas onde ficam seus projetos — o DockDesk encontra os{' '}
-            <code>docker-compose.yml</code> automaticamente e você sobe tudo com um clique.
-          </div>
+          <h1 className="view-title">{t('compose_title')}</h1>
+          <div className="view-sub">{t('compose_sub')}</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn" onClick={refresh} disabled={scanning} data-testid="compose-refresh">
             {scanning ? <Loader2 size={15} className="spin" /> : <RefreshCw size={15} />}
-            Atualizar
+            {t('refresh')}
           </button>
           <button className="btn primary" onClick={addFolder} data-testid="compose-add-folder">
-            <FolderPlus size={15} /> Adicionar pasta
+            <FolderPlus size={15} /> {t('add_folder')}
           </button>
         </div>
       </div>
@@ -121,7 +135,11 @@ export function ComposeView({ notify }: Props) {
           {folders.map((f) => (
             <span key={f} className="folder-chip">
               {f}
-              <button onClick={() => removeFolder(f)} title="Remover pasta" data-testid={`remove-folder-${f}`}>
+              <button
+                onClick={() => removeFolder(f)}
+                title={t('remove_folder')}
+                data-testid={`remove-folder-${f}`}
+              >
                 <X size={13} />
               </button>
             </span>
@@ -129,41 +147,55 @@ export function ComposeView({ notify }: Props) {
         </div>
       )}
 
-      {projects === null ? (
+      {orderedProjects === null ? (
         <div className="empty-state">
           <Loader2 size={36} className="spin" />
         </div>
-      ) : projects.length === 0 ? (
+      ) : orderedProjects.length === 0 ? (
         <div className="empty-state">
           <FolderSearch size={44} />
-          <h3>Nenhum projeto Compose encontrado</h3>
-          <p>
-            Clique em <strong>Adicionar pasta</strong> e escolha o diretório onde ficam seus
-            projetos (ex.: ~/Projetos). O DockDesk procura arquivos docker-compose.yml em até
-            4 níveis de subpastas.
-          </p>
+          <h3>{t('compose_empty_title')}</h3>
+          <p>{t('compose_empty_text')}</p>
         </div>
       ) : (
         <div className="compose-grid">
-          {projects.map((p) => {
+          {orderedProjects.map((p) => {
             const status = statuses[p.file];
             const action = runningAction[p.file];
             const consoleText = consoles[p.file];
+            const running = status?.running ?? 0;
+            const total = Math.max(p.services.length, status?.total ?? 0, 1);
             const upServices = new Set(
               (status?.containers ?? [])
                 .filter((c) => (c.state || '').toLowerCase() === 'running')
                 .map((c) => c.service)
             );
+            const allFiles = orderedProjects.map((x) => x.file);
             return (
-              <div key={p.file} className="compose-card" data-testid={`compose-${p.name}`}>
+              <div
+                key={p.file}
+                className="compose-card"
+                data-testid={`compose-${p.name}`}
+                onDragOver={order.onDragOver}
+                onDrop={order.makeOnDrop(p.file, allFiles)}
+              >
                 <div className="compose-card-head">
+                  <span
+                    className="drag-handle"
+                    draggable
+                    onDragStart={order.onDragStart(p.file)}
+                    title={t('drag_reorder')}
+                    data-testid={`compose-drag-${p.name}`}
+                  >
+                    <GripVertical size={15} />
+                  </span>
                   <Layers size={20} color="#22d3ee" />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="compose-name">
                       {p.name}{' '}
                       {status && status.total > 0 && (
-                        <span className={`badge ${status.running > 0 ? 'running' : 'exited'}`}>
-                          {status.running}/{status.total} rodando
+                        <span className={`badge ${running > 0 ? 'running' : 'exited'}`}>
+                          {t('running_count', { n: running, total: status.total })}
                         </span>
                       )}
                     </div>
@@ -173,24 +205,27 @@ export function ComposeView({ notify }: Props) {
                     {action ? (
                       <button className="btn" disabled>
                         <Loader2 size={15} className="spin" />
-                        {action === 'up' ? 'Subindo…' : action === 'down' ? 'Derrubando…' : 'Reiniciando…'}
+                        {action === 'up'
+                          ? t('compose_upping')
+                          : action === 'down'
+                            ? t('compose_downing')
+                            : t('compose_restarting')}
                       </button>
                     ) : (
                       <>
                         {/* Subir só aparece se há serviço parado; Reiniciar e
                             Derrubar só fazem sentido com algo rodando */}
-                        {(status?.running ?? 0) <
-                          Math.max(p.services.length, status?.total ?? 0, 1) && (
+                        {running < total && (
                           <button
                             className="btn success"
                             onClick={() => runAction(p, 'up')}
                             title="docker compose up -d"
                             data-testid={`compose-up-${p.name}`}
                           >
-                            <ArrowUpCircle size={15} /> Subir
+                            <ArrowUpCircle size={15} /> {t('compose_up')}
                           </button>
                         )}
-                        {(status?.running ?? 0) > 0 && (
+                        {running > 0 && (
                           <>
                             <button
                               className="btn"
@@ -198,7 +233,7 @@ export function ComposeView({ notify }: Props) {
                               title="docker compose restart"
                               data-testid={`compose-restart-${p.name}`}
                             >
-                              <RotateCw size={15} /> Reiniciar
+                              <RotateCw size={15} /> {t('compose_restart')}
                             </button>
                             <button
                               className="btn danger"
@@ -206,7 +241,7 @@ export function ComposeView({ notify }: Props) {
                               title="docker compose down"
                               data-testid={`compose-down-${p.name}`}
                             >
-                              <ArrowDownCircle size={15} /> Derrubar
+                              <ArrowDownCircle size={15} /> {t('compose_down')}
                             </button>
                           </>
                         )}

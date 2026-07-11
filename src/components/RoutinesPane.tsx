@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Play, Plus, Pencil, Trash2, ListChecks } from 'lucide-react';
 import type { ContainerSummary, Routine } from '../global';
+import { useI18n } from '../i18n';
 
 interface Props {
   container: ContainerSummary;
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export function RoutinesPane({ container, onRunInTerminal }: Props) {
+  const { t } = useI18n();
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [editing, setEditing] = useState<Routine | 'new' | null>(null);
   const [complementFor, setComplementFor] = useState<Routine | null>(null);
@@ -40,25 +42,21 @@ export function RoutinesPane({ container, onRunInTerminal }: Props) {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
         <p className="term-hint" style={{ margin: 0, flex: 1 }}>
-          Rotinas são atalhos de comandos que rodam no terminal deste container. Rotinas
-          “complementáveis” pedem o resto do comando na hora de executar.
+          {t('routines_hint')}
         </p>
         <button
           className="btn primary sm"
           onClick={() => setEditing('new')}
           data-testid="routine-new"
         >
-          <Plus size={14} /> Nova rotina
+          <Plus size={14} /> {t('routines_new')}
         </button>
       </div>
 
       {routines.length === 0 ? (
         <div className="centered-note">
           <ListChecks size={36} />
-          <div>
-            Nenhuma rotina ainda. Crie atalhos como <code>htop</code>,{' '}
-            <code>npm run dev</code> ou um <code>cd /app</code> complementável.
-          </div>
+          <div>{t('routines_empty')}</div>
         </div>
       ) : (
         <div className="routine-list">
@@ -68,7 +66,7 @@ export function RoutinesPane({ container, onRunInTerminal }: Props) {
                 className="routine-run"
                 onClick={() => run(r)}
                 data-testid={`routine-run-${r.label}`}
-                title={r.partial ? 'Executar (pede complemento)' : 'Executar no terminal'}
+                title={r.partial ? t('routine_run_partial') : t('routine_run')}
               >
                 <Play size={15} />
               </button>
@@ -76,8 +74,8 @@ export function RoutinesPane({ container, onRunInTerminal }: Props) {
                 <div className="routine-label">
                   {r.label}
                   {r.partial && (
-                    <span className="compose-tag" title="Pede complemento ao executar">
-                      complementável
+                    <span className="compose-tag" title={t('routine_run_partial')}>
+                      {t('routines_partial_badge')}
                     </span>
                   )}
                 </div>
@@ -88,7 +86,7 @@ export function RoutinesPane({ container, onRunInTerminal }: Props) {
               </div>
               <button
                 className="btn icon-only sm"
-                title="Editar"
+                title={t('routine_edit')}
                 onClick={() => setEditing(r)}
                 data-testid={`routine-edit-${r.label}`}
               >
@@ -102,12 +100,12 @@ export function RoutinesPane({ container, onRunInTerminal }: Props) {
                     setConfirmDelete(null);
                   }}
                 >
-                  Confirmar?
+                  {t('confirm')}
                 </button>
               ) : (
                 <button
                   className="btn icon-only sm danger"
-                  title="Excluir rotina"
+                  title={t('routine_delete')}
                   onClick={() => setConfirmDelete(r.id)}
                 >
                   <Trash2 size={13} />
@@ -153,6 +151,7 @@ function RoutineEditor({
   onSave: (r: Routine) => void;
   onCancel: () => void;
 }) {
+  const { t } = useI18n();
   const [label, setLabel] = useState(routine?.label ?? '');
   const [command, setCommand] = useState(routine?.command ?? '');
   const [partial, setPartial] = useState(routine?.partial ?? false);
@@ -169,26 +168,26 @@ function RoutineEditor({
   }
 
   return (
-    <Modal title={routine ? 'Editar rotina' : 'Nova rotina'} onClose={onCancel}>
+    <Modal title={routine ? t('routine_editor_edit') : t('routine_editor_new')} onClose={onCancel}>
       <form onSubmit={submit} className="modal-form" data-testid="routine-editor">
         <label>
-          Nome do atalho
+          {t('routine_name_label')}
           <input
             className="exec-input"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="ex.: Instalar dependências"
+            placeholder={t('routine_name_ph')}
             data-testid="routine-label-input"
             autoFocus
           />
         </label>
         <label>
-          Comando
+          {t('routine_cmd_label')}
           <input
             className="exec-input"
             value={command}
             onChange={(e) => setCommand(e.target.value)}
-            placeholder="ex.: cd /home/projeto"
+            placeholder={t('routine_cmd_ph')}
             data-testid="routine-command-input"
           />
         </label>
@@ -199,12 +198,11 @@ function RoutineEditor({
             onChange={(e) => setPartial(e.target.checked)}
             data-testid="routine-partial-check"
           />
-          Comando parcial — pedir complemento ao executar (ex.: você cola{' '}
-          <code>&amp;&amp; npm install</code> na hora)
+          {t('routine_partial_label')}
         </label>
         <div className="modal-actions">
           <button type="button" className="btn" onClick={onCancel}>
-            Cancelar
+            {t('cancel')}
           </button>
           <button
             type="submit"
@@ -212,7 +210,7 @@ function RoutineEditor({
             disabled={!label.trim() || !command.trim()}
             data-testid="routine-save"
           >
-            Salvar
+            {t('save')}
           </button>
         </div>
       </form>
@@ -229,6 +227,7 @@ function ComplementModal({
   onRun: (complement: string) => void;
   onCancel: () => void;
 }) {
+  const { t } = useI18n();
   const [complement, setComplement] = useState('');
 
   function submit(e: FormEvent) {
@@ -237,10 +236,10 @@ function ComplementModal({
   }
 
   return (
-    <Modal title={`Completar: ${routine.label}`} onClose={onCancel}>
+    <Modal title={t('complement_title', { label: routine.label })} onClose={onCancel}>
       <form onSubmit={submit} className="modal-form" data-testid="complement-modal">
         <p className="term-hint" style={{ margin: 0 }}>
-          O comando abaixo será executado no terminal do container:
+          {t('complement_hint')}
         </p>
         <div className="complement-preview">
           <code>{routine.command}</code>{' '}
@@ -255,10 +254,10 @@ function ComplementModal({
         </div>
         <div className="modal-actions">
           <button type="button" className="btn" onClick={onCancel}>
-            Cancelar
+            {t('cancel')}
           </button>
           <button type="submit" className="btn primary" data-testid="complement-run">
-            <Play size={14} /> Executar
+            <Play size={14} /> {t('complement_run')}
           </button>
         </div>
       </form>

@@ -64,6 +64,7 @@ export interface ImageSummary {
   tags: string[];
   size: number;
   created: number;
+  project: string | null;
 }
 
 export interface ExecResult {
@@ -142,6 +143,9 @@ export interface DockDeskApi {
   routines: {
     list: (key: string) => Promise<Routine[]>;
     save: (key: string, list: Routine[]) => Promise<Routine[]>;
+  };
+  settings: {
+    setLang: (lang: string) => Promise<boolean>;
   };
   compose: {
     folders: () => Promise<string[]>;

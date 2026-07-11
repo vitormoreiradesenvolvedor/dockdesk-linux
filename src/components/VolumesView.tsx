@@ -1,24 +1,39 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Database, Trash2, Loader2, RefreshCw, ChevronDown, Layers, Boxes } from 'lucide-react';
+import {
+  Database,
+  Trash2,
+  Loader2,
+  RefreshCw,
+  ChevronDown,
+  Layers,
+  Boxes,
+  GripVertical,
+} from 'lucide-react';
 import type { VolumeSummary } from '../global';
+import { useI18n } from '../i18n';
+import { useGroupOrder } from '../hooks/useGroupOrder';
+
+const LOOSE = '__loose__';
 
 interface Props {
   notify: (text: string, kind?: 'error' | 'info') => void;
 }
 
 export function VolumesView({ notify }: Props) {
+  const { t } = useI18n();
   const [volumes, setVolumes] = useState<VolumeSummary[] | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const order = useGroupOrder('volumes');
 
   const refresh = useCallback(async () => {
     try {
       setVolumes(await window.dockdesk.volumes.list());
     } catch (err: any) {
-      notify(`Falha ao listar volumes: ${err.message}`);
+      notify(t('volumes_fail', { msg: err.message }));
     }
-  }, [notify]);
+  }, [notify, t]);
 
   useEffect(() => {
     refresh();
@@ -31,9 +46,9 @@ export function VolumesView({ notify }: Props) {
       await refresh();
     } catch (err: any) {
       notify(
-        `Não foi possível remover o volume: ${
-          /in use|being used/i.test(err.message) ? 'ele está em uso por um container.' : err.message
-        }`
+        /in use|being used/i.test(err.message)
+          ? t('volume_in_use_err')
+          : t('volume_remove_fail', { msg: err.message })
       );
     } finally {
       setBusy(null);
@@ -44,31 +59,30 @@ export function VolumesView({ notify }: Props) {
   function toggle(key: string) {
     setCollapsed((s) => {
       const next = new Set(s);
-      next.has(key) ? next.delete(key) : next.add(key);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }
 
   const groups = new Map<string, VolumeSummary[]>();
   for (const v of volumes ?? []) {
-    const key = v.project ?? '__loose__';
-    (groups.get(key) ?? groups.set(key, []).get(key)!).push(v);
+    const key = v.project ?? LOOSE;
+    const list = groups.get(key) ?? [];
+    list.push(v);
+    groups.set(key, list);
   }
-  const keys = [...groups.keys()].sort((a, b) =>
-    a === '__loose__' ? 1 : b === '__loose__' ? -1 : a.localeCompare(b)
-  );
+  const orderedKeys = order.sortKeys([...groups.keys()]);
 
   return (
     <section className="view" data-testid="volumes-view">
       <div className="view-header">
         <div>
-          <h1 className="view-title">Volumes</h1>
-          <div className="view-sub">
-            Volumes Docker desta máquina, agrupados pelo projeto Compose de origem.
-          </div>
+          <h1 className="view-title">{t('volumes_title')}</h1>
+          <div className="view-sub">{t('volumes_sub')}</div>
         </div>
         <button className="btn" onClick={refresh} data-testid="volumes-refresh">
-          <RefreshCw size={15} /> Atualizar
+          <RefreshCw size={15} /> {t('refresh')}
         </button>
       </div>
 
@@ -79,23 +93,38 @@ export function VolumesView({ notify }: Props) {
       ) : volumes.length === 0 ? (
         <div className="empty-state">
           <Database size={44} />
-          <h3>Nenhum volume</h3>
-          <p>Volumes criados por containers ou projetos Compose aparecem aqui.</p>
+          <h3>{t('volumes_empty_title')}</h3>
+          <p>{t('volumes_empty_text')}</p>
         </div>
       ) : (
-        keys.map((key) => {
+        orderedKeys.map((key) => {
           const items = groups.get(key)!;
-          const isLoose = key === '__loose__';
+          const isLoose = key === LOOSE;
           const isCollapsed = collapsed.has(key);
+          const testName = isLoose ? 'avulsos' : key;
           return (
-            <section key={key} className="group-section" data-testid={`volume-group-${isLoose ? 'avulsos' : key}`}>
-              <button className="group-header" onClick={() => toggle(key)}>
+            <section key={key} className="group-section" data-testid={`volume-group-${testName}`}>
+              <div
+                className="group-header"
+                draggable
+                onDragStart={order.onDragStart(key)}
+                onDragOver={order.onDragOver}
+                onDrop={order.makeOnDrop(key, [...groups.keys()])}
+                onClick={() => toggle(key)}
+                data-testid={`volume-group-toggle-${testName}`}
+                title={t('drag_reorder')}
+              >
+                <GripVertical size={14} className="grip" />
                 <ChevronDown size={16} className={`chevron ${isCollapsed ? 'closed' : ''}`} />
-                {isLoose ? <Boxes size={15} color="#8b949e" /> : <Layers size={15} color="#22d3ee" />}
-                <span className="group-name">{isLoose ? 'Volumes avulsos' : key}</span>
-                {!isLoose && <span className="compose-tag">compose</span>}
+                {isLoose ? (
+                  <Boxes size={15} color="#8b949e" />
+                ) : (
+                  <Layers size={15} color="#22d3ee" />
+                )}
+                <span className="group-name">{isLoose ? t('group_loose_volumes') : key}</span>
+                {!isLoose && <span className="compose-tag">{t('tag_compose')}</span>}
                 <span className="badge exited">{items.length}</span>
-              </button>
+              </div>
               {!isCollapsed && (
                 <div className="container-list grouped">
                   {items.map((v) => (
@@ -117,7 +146,7 @@ export function VolumesView({ notify }: Props) {
                         )}
                       </div>
                       <span className={`badge ${v.usedBy.length ? 'running' : 'exited'}`}>
-                        {v.usedBy.length ? 'Em uso' : 'Livre'}
+                        {v.usedBy.length ? t('vol_in_use') : t('vol_free')}
                       </span>
                       {busy === v.name ? (
                         <button className="btn sm" disabled>
@@ -125,12 +154,12 @@ export function VolumesView({ notify }: Props) {
                         </button>
                       ) : confirmRemove === v.name ? (
                         <button className="btn sm danger" onClick={() => remove(v)}>
-                          Confirmar?
+                          {t('confirm')}
                         </button>
                       ) : (
                         <button
                           className="btn icon-only sm danger"
-                          title="Remover volume"
+                          title={t('remove_volume')}
                           onClick={() => setConfirmRemove(v.name)}
                         >
                           <Trash2 size={14} />

@@ -1,24 +1,40 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Network, Trash2, Loader2, RefreshCw, ChevronDown, Layers, Boxes, Lock } from 'lucide-react';
+import {
+  Network,
+  Trash2,
+  Loader2,
+  RefreshCw,
+  ChevronDown,
+  Layers,
+  Boxes,
+  Lock,
+  GripVertical,
+} from 'lucide-react';
 import type { NetworkSummary } from '../global';
+import { useI18n } from '../i18n';
+import { useGroupOrder } from '../hooks/useGroupOrder';
+
+const LOOSE = '__loose__';
 
 interface Props {
   notify: (text: string, kind?: 'error' | 'info') => void;
 }
 
 export function NetworksView({ notify }: Props) {
+  const { t } = useI18n();
   const [networks, setNetworks] = useState<NetworkSummary[] | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const order = useGroupOrder('networks');
 
   const refresh = useCallback(async () => {
     try {
       setNetworks(await window.dockdesk.networks.list());
     } catch (err: any) {
-      notify(`Falha ao listar redes: ${err.message}`);
+      notify(t('networks_fail', { msg: err.message }));
     }
-  }, [notify]);
+  }, [notify, t]);
 
   useEffect(() => {
     refresh();
@@ -31,11 +47,9 @@ export function NetworksView({ notify }: Props) {
       await refresh();
     } catch (err: any) {
       notify(
-        `Não foi possível remover a rede: ${
-          /active endpoints|in use/i.test(err.message)
-            ? 'há containers conectados a ela.'
-            : err.message
-        }`
+        /active endpoints|in use/i.test(err.message)
+          ? t('network_in_use_err')
+          : t('network_remove_fail', { msg: err.message })
       );
     } finally {
       setBusy(null);
@@ -46,31 +60,30 @@ export function NetworksView({ notify }: Props) {
   function toggle(key: string) {
     setCollapsed((s) => {
       const next = new Set(s);
-      next.has(key) ? next.delete(key) : next.add(key);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }
 
   const groups = new Map<string, NetworkSummary[]>();
   for (const n of networks ?? []) {
-    const key = n.project ?? '__loose__';
-    (groups.get(key) ?? groups.set(key, []).get(key)!).push(n);
+    const key = n.project ?? LOOSE;
+    const list = groups.get(key) ?? [];
+    list.push(n);
+    groups.set(key, list);
   }
-  const keys = [...groups.keys()].sort((a, b) =>
-    a === '__loose__' ? 1 : b === '__loose__' ? -1 : a.localeCompare(b)
-  );
+  const orderedKeys = order.sortKeys([...groups.keys()]);
 
   return (
     <section className="view" data-testid="networks-view">
       <div className="view-header">
         <div>
-          <h1 className="view-title">Redes</h1>
-          <div className="view-sub">
-            Redes Docker desta máquina, agrupadas pelo projeto Compose de origem.
-          </div>
+          <h1 className="view-title">{t('networks_title')}</h1>
+          <div className="view-sub">{t('networks_sub')}</div>
         </div>
         <button className="btn" onClick={refresh} data-testid="networks-refresh">
-          <RefreshCw size={15} /> Atualizar
+          <RefreshCw size={15} /> {t('refresh')}
         </button>
       </div>
 
@@ -79,19 +92,34 @@ export function NetworksView({ notify }: Props) {
           <Loader2 size={36} className="spin" />
         </div>
       ) : (
-        keys.map((key) => {
+        orderedKeys.map((key) => {
           const items = groups.get(key)!;
-          const isLoose = key === '__loose__';
+          const isLoose = key === LOOSE;
           const isCollapsed = collapsed.has(key);
+          const testName = isLoose ? 'avulsas' : key;
           return (
-            <section key={key} className="group-section" data-testid={`network-group-${isLoose ? 'avulsas' : key}`}>
-              <button className="group-header" onClick={() => toggle(key)}>
+            <section key={key} className="group-section" data-testid={`network-group-${testName}`}>
+              <div
+                className="group-header"
+                draggable
+                onDragStart={order.onDragStart(key)}
+                onDragOver={order.onDragOver}
+                onDrop={order.makeOnDrop(key, [...groups.keys()])}
+                onClick={() => toggle(key)}
+                data-testid={`network-group-toggle-${testName}`}
+                title={t('drag_reorder')}
+              >
+                <GripVertical size={14} className="grip" />
                 <ChevronDown size={16} className={`chevron ${isCollapsed ? 'closed' : ''}`} />
-                {isLoose ? <Boxes size={15} color="#8b949e" /> : <Layers size={15} color="#22d3ee" />}
-                <span className="group-name">{isLoose ? 'Redes avulsas' : key}</span>
-                {!isLoose && <span className="compose-tag">compose</span>}
+                {isLoose ? (
+                  <Boxes size={15} color="#8b949e" />
+                ) : (
+                  <Layers size={15} color="#22d3ee" />
+                )}
+                <span className="group-name">{isLoose ? t('group_loose_networks') : key}</span>
+                {!isLoose && <span className="compose-tag">{t('tag_compose')}</span>}
                 <span className="badge exited">{items.length}</span>
-              </button>
+              </div>
               {!isCollapsed && (
                 <div className="container-list grouped">
                   {items.map((n) => (
@@ -101,9 +129,12 @@ export function NetworksView({ notify }: Props) {
                         <div className="container-name">
                           {n.name}
                           {n.builtin && (
-                            <span className="compose-tag" style={{ color: '#8b949e', background: 'rgba(139,148,158,0.12)' }}>
+                            <span
+                              className="compose-tag"
+                              style={{ color: '#8b949e', background: 'rgba(139,148,158,0.12)' }}
+                            >
                               <Lock size={9} style={{ marginRight: 3 }} />
-                              padrão do Docker
+                              {t('net_builtin')}
                             </span>
                           )}
                         </div>
@@ -122,8 +153,8 @@ export function NetworksView({ notify }: Props) {
                       </div>
                       <span className={`badge ${n.containers.length ? 'running' : 'exited'}`}>
                         {n.containers.length
-                          ? `${n.containers.length} conectado${n.containers.length > 1 ? 's' : ''}`
-                          : 'Sem conexões'}
+                          ? t('net_connected', { n: n.containers.length })
+                          : t('net_none')}
                       </span>
                       {!n.builtin &&
                         (busy === n.id ? (
@@ -132,12 +163,12 @@ export function NetworksView({ notify }: Props) {
                           </button>
                         ) : confirmRemove === n.id ? (
                           <button className="btn sm danger" onClick={() => remove(n)}>
-                            Confirmar?
+                            {t('confirm')}
                           </button>
                         ) : (
                           <button
                             className="btn icon-only sm danger"
-                            title="Remover rede"
+                            title={t('remove_network')}
                             onClick={() => setConfirmRemove(n.id)}
                           >
                             <Trash2 size={14} />

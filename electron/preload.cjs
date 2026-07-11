@@ -53,6 +53,9 @@ contextBridge.exposeInMainWorld('dockdesk', {
     list: (key) => ipcRenderer.invoke('routines:list', key),
     save: (key, list) => ipcRenderer.invoke('routines:save', key, list),
   },
+  settings: {
+    setLang: (lang) => ipcRenderer.invoke('settings:setLang', lang),
+  },
   compose: {
     folders: () => ipcRenderer.invoke('compose:folders'),
     addFolder: () => ipcRenderer.invoke('compose:addFolder'),

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { X, Play, Square, RotateCw } from 'lucide-react';
 import type { ContainerDetails, ContainerSummary } from '../global';
-import { stateLabel } from '../utils';
 import { TerminalPane } from './TerminalPane';
 import { LogsPane } from './LogsPane';
 import { ExecPane } from './ExecPane';
 import { RoutinesPane } from './RoutinesPane';
+import { useI18n } from '../i18n';
 
 type Tab = 'overview' | 'terminal' | 'exec' | 'routines' | 'logs';
 
@@ -18,6 +18,7 @@ interface Props {
 }
 
 export function ContainerDetail({ container, initialTab, onClose, onAction, notify }: Props) {
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>(initialTab);
   // abas já visitadas continuam montadas (só escondidas): terminal e saída
   // de comandos não são perdidos ao alternar entre abas
@@ -26,9 +27,9 @@ export function ContainerDetail({ container, initialTab, onClose, onAction, noti
   const [pendingCommand, setPendingCommand] = useState<string | null>(null);
   const running = container.state === 'running';
 
-  const openTab = useCallback((t: Tab) => {
-    setVisited((v) => (v.has(t) ? v : new Set(v).add(t)));
-    setTab(t);
+  const openTab = useCallback((tb: Tab) => {
+    setVisited((v) => (v.has(tb) ? v : new Set(v).add(tb)));
+    setTab(tb);
   }, []);
 
   const runInTerminal = useCallback(
@@ -68,7 +69,7 @@ export function ContainerDetail({ container, initialTab, onClose, onAction, noti
           <div className="drawer-title-row">
             <span className={`state-indicator ${container.state}`} />
             <h2 className="drawer-title">{container.name}</h2>
-            <span className={`badge ${container.state}`}>{stateLabel(container.state)}</span>
+            <span className={`badge ${container.state}`}>{t(`state_${container.state}`)}</span>
             {running ? (
               <>
                 <button
@@ -76,14 +77,14 @@ export function ContainerDetail({ container, initialTab, onClose, onAction, noti
                   onClick={() => onAction(container, 'restart')}
                   data-testid="drawer-restart"
                 >
-                  <RotateCw size={13} /> Reiniciar
+                  <RotateCw size={13} /> {t('action_restart')}
                 </button>
                 <button
                   className="btn sm danger"
                   onClick={() => onAction(container, 'stop')}
                   data-testid="drawer-stop"
                 >
-                  <Square size={13} /> Parar
+                  <Square size={13} /> {t('action_stop')}
                 </button>
               </>
             ) : (
@@ -92,7 +93,7 @@ export function ContainerDetail({ container, initialTab, onClose, onAction, noti
                 onClick={() => onAction(container, 'start')}
                 data-testid="drawer-start"
               >
-                <Play size={13} /> Ligar
+                <Play size={13} /> {t('action_start')}
               </button>
             )}
             <button className="btn icon-only" onClick={onClose} data-testid="drawer-close">
@@ -102,11 +103,11 @@ export function ContainerDetail({ container, initialTab, onClose, onAction, noti
           <div className="tabs">
             {(
               [
-                ['overview', 'Visão geral'],
-                ['terminal', 'Terminal'],
-                ['exec', 'Executar comando'],
-                ['routines', 'Rotinas'],
-                ['logs', 'Logs'],
+                ['overview', t('tab_overview')],
+                ['terminal', t('tab_terminal')],
+                ['exec', t('tab_exec')],
+                ['routines', t('tab_routines')],
+                ['logs', t('tab_logs')],
               ] as [Tab, string][]
             ).map(([key, label]) => (
               <button
@@ -179,44 +180,45 @@ function Overview({
   container: ContainerSummary;
   details: ContainerDetails | null;
 }) {
+  const { t } = useI18n();
   return (
     <div className="pane-scroll">
     <div className="detail-grid" data-testid="overview-pane">
       <div className="detail-item">
-        <h4>Imagem</h4>
+        <h4>{t('ov_image')}</h4>
         <code>{container.image}</code>
       </div>
       <div className="detail-item">
-        <h4>ID</h4>
+        <h4>{t('ov_id')}</h4>
         <code>{container.shortId}</code>
       </div>
       <div className="detail-item">
-        <h4>Status</h4>
+        <h4>{t('ov_status')}</h4>
         <p>{container.status}</p>
       </div>
       {details && (
         <>
           <div className="detail-item">
-            <h4>IP interno</h4>
+            <h4>{t('ov_ip')}</h4>
             <code>{details.ipAddress || '—'}</code>
           </div>
           <div className="detail-item">
-            <h4>Redes</h4>
+            <h4>{t('ov_networks')}</h4>
             <code>{details.networks.join(', ') || '—'}</code>
           </div>
           <div className="detail-item">
-            <h4>Reinícios</h4>
+            <h4>{t('ov_restarts')}</h4>
             <p>{details.restartCount}</p>
           </div>
           <div className="detail-item wide">
-            <h4>Comando</h4>
+            <h4>{t('ov_command')}</h4>
             <code>
               {[...(details.entrypoint ?? []), ...(details.cmd ?? [])].join(' ') || '—'}
             </code>
           </div>
           {container.ports.length > 0 && (
             <div className="detail-item wide">
-              <h4>Portas</h4>
+              <h4>{t('ov_ports')}</h4>
               <div className="container-ports">
                 {container.ports.map((p, i) => (
                   <span key={i} className="port-chip">
@@ -228,20 +230,20 @@ function Overview({
           )}
           {details.mounts.length > 0 && (
             <div className="detail-item wide">
-              <h4>Volumes / Montagens</h4>
+              <h4>{t('ov_mounts')}</h4>
               {details.mounts.map((m, i) => (
                 <div key={i} className="mount-row">
                   <span>{m.source}</span>
                   <span className="arrow">→</span>
                   <span>{m.destination}</span>
-                  <span>({m.rw ? 'leitura/escrita' : 'somente leitura'})</span>
+                  <span>({m.rw ? t('rw') : t('ro')})</span>
                 </div>
               ))}
             </div>
           )}
           {details.env.length > 0 && (
             <div className="detail-item wide">
-              <h4>Variáveis de ambiente</h4>
+              <h4>{t('ov_env')}</h4>
               <div className="env-list">
                 {details.env.map((e, i) => (
                   <code key={i}>{e}</code>

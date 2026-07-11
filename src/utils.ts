@@ -15,15 +15,3 @@ export function formatDate(unixSeconds: number): string {
   });
 }
 
-export const STATE_LABELS: Record<string, string> = {
-  running: 'Rodando',
-  exited: 'Parado',
-  paused: 'Pausado',
-  created: 'Criado',
-  restarting: 'Reiniciando',
-  dead: 'Morto',
-};
-
-export function stateLabel(state: string): string {
-  return STATE_LABELS[state] ?? state;
-}

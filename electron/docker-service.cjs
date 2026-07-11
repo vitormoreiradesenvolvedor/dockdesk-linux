@@ -413,6 +413,7 @@ async function listImages() {
     tags: (img.RepoTags || []).filter((t) => t !== '<none>:<none>'),
     size: img.Size,
     created: img.Created,
+    project: (img.Labels && img.Labels['com.docker.compose.project']) || null,
   }));
 }
 

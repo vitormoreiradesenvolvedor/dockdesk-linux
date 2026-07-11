@@ -16,6 +16,18 @@ let mainWindow = null;
 let tray = null;
 let isQuitting = false;
 
+// instância única: a segunda execução apenas traz a janela existente à frente
+const singleInstanceLock = app.requestSingleInstanceLock();
+if (!singleInstanceLock) {
+  app.quit();
+}
+app.on('second-instance', () => {
+  if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
+  }
+});
+
 const ICON_PATH = path.join(__dirname, '..', 'build', 'icon.png');
 const TRAY_ICON_PATH = path.join(__dirname, '..', 'build', 'tray.png');
 
@@ -81,21 +93,70 @@ function applyAutostart() {
 
 // ---------- Bandeja (tray) ----------
 
+const TRAY_STRINGS = {
+  pt: {
+    toggle: 'Mostrar/Ocultar DockDesk',
+    autostart: 'Iniciar com o sistema',
+    hidden: 'Iniciar oculto (só na bandeja)',
+    quit: 'Encerrar DockDesk',
+  },
+  en: {
+    toggle: 'Show/Hide DockDesk',
+    autostart: 'Start with the system',
+    hidden: 'Start hidden (tray only)',
+    quit: 'Quit DockDesk',
+  },
+  zh: {
+    toggle: '显示/隐藏 DockDesk',
+    autostart: '开机自启动',
+    hidden: '启动时隐藏（仅托盘）',
+    quit: '退出 DockDesk',
+  },
+  hi: {
+    toggle: 'DockDesk दिखाएँ/छिपाएँ',
+    autostart: 'सिस्टम के साथ शुरू करें',
+    hidden: 'छिपा हुआ शुरू करें (केवल ट्रे)',
+    quit: 'DockDesk बंद करें',
+  },
+  es: {
+    toggle: 'Mostrar/Ocultar DockDesk',
+    autostart: 'Iniciar con el sistema',
+    hidden: 'Iniciar oculto (solo bandeja)',
+    quit: 'Salir de DockDesk',
+  },
+  fr: {
+    toggle: 'Afficher/Masquer DockDesk',
+    autostart: 'Lancer au démarrage',
+    hidden: 'Démarrer masqué (zone de notification)',
+    quit: 'Quitter DockDesk',
+  },
+};
+
 function showWindow() {
   if (!mainWindow) return;
   mainWindow.show();
   mainWindow.focus();
 }
 
+function toggleWindow() {
+  if (!mainWindow) return;
+  if (mainWindow.isVisible()) {
+    mainWindow.hide();
+  } else {
+    showWindow();
+  }
+}
+
 function rebuildTrayMenu() {
   if (!tray) return;
   const config = loadConfig();
+  const t = TRAY_STRINGS[config.lang] || TRAY_STRINGS.pt;
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: 'Mostrar DockDesk', click: showWindow },
+      { label: t.toggle, click: toggleWindow },
       { type: 'separator' },
       {
-        label: 'Iniciar com o sistema',
+        label: t.autostart,
         type: 'checkbox',
         checked: !!config.autostart,
         click: (item) => {
@@ -107,7 +168,7 @@ function rebuildTrayMenu() {
         },
       },
       {
-        label: 'Iniciar oculto (só na bandeja)',
+        label: t.hidden,
         type: 'checkbox',
         checked: !!config.startHidden,
         click: (item) => {
@@ -120,7 +181,7 @@ function rebuildTrayMenu() {
       },
       { type: 'separator' },
       {
-        label: 'Encerrar DockDesk',
+        label: t.quit,
         click: () => {
           isQuitting = true;
           app.quit();
@@ -135,7 +196,7 @@ function createTray() {
     const image = nativeImage.createFromPath(TRAY_ICON_PATH);
     tray = new Tray(image);
     tray.setToolTip('DockDesk');
-    tray.on('click', showWindow);
+    tray.on('click', toggleWindow);
     rebuildTrayMenu();
   } catch (err) {
     // sem suporte a tray no ambiente (ex.: CI) — o app segue normal
@@ -238,6 +299,16 @@ ipcMain.handle('volumes:list', () => dockerService.listVolumes());
 ipcMain.handle('volumes:remove', (_e, name) => dockerService.removeVolume(name));
 ipcMain.handle('networks:list', () => dockerService.listNetworks());
 ipcMain.handle('networks:remove', (_e, id) => dockerService.removeNetwork(id));
+
+// ---------- IPC: preferências ----------
+
+ipcMain.handle('settings:setLang', (_e, lang) => {
+  const config = loadConfig();
+  config.lang = lang;
+  saveConfig(config);
+  rebuildTrayMenu();
+  return true;
+});
 
 // ---------- IPC: rotinas ----------
 

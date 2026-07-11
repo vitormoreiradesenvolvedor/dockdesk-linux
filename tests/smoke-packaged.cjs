@@ -2,7 +2,7 @@
 // confere conexão com a engine e a listagem de containers. Uso:
 //   node tests/smoke-packaged.cjs
 const { _electron } = require('@playwright/test');
-const { execSync } = require('child_process');
+const { execSync, spawn } = require('child_process');
 const path = require('path');
 
 const CONTAINER = 'dockdesk-smoke';
@@ -33,6 +33,22 @@ async function main() {
     const badge = await page.textContent(`[data-testid="badge-${CONTAINER}"]`);
     if (badge !== 'Rodando') throw new Error(`badge inesperado: ${badge}`);
     console.log('✔ status "Rodando" exibido');
+
+    // instância única: uma segunda execução deve encerrar sozinha em instantes
+    const bin = path.join(__dirname, '..', 'release', 'linux-unpacked', 'dockdesk');
+    const second = spawn(bin, [], { stdio: 'ignore' });
+    const exited = await new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(false), 8000);
+      second.on('exit', () => {
+        clearTimeout(timer);
+        resolve(true);
+      });
+    });
+    if (!exited) {
+      second.kill();
+      throw new Error('segunda instância não encerrou sozinha');
+    }
+    console.log('✔ segunda instância encerrou sozinha (lock de instância única)');
 
     console.log('SMOKE OK');
   } finally {

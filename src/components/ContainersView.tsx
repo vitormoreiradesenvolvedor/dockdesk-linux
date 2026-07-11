@@ -9,10 +9,15 @@ import {
   Loader2,
   ChevronDown,
   Layers,
+  GripVertical,
 } from 'lucide-react';
 import type { ContainerStats, ContainerSummary } from '../global';
-import { formatBytes, stateLabel } from '../utils';
+import { formatBytes } from '../utils';
 import { ContainerDetail } from './ContainerDetail';
+import { useI18n } from '../i18n';
+import { useGroupOrder } from '../hooks/useGroupOrder';
+
+const LOOSE = '__loose__';
 
 interface Props {
   containers: ContainerSummary[];
@@ -22,12 +27,14 @@ interface Props {
 }
 
 export function ContainersView({ containers, stats, onRefresh, notify }: Props) {
+  const { t } = useI18n();
   const [filter, setFilter] = useState('');
   const [selected, setSelected] = useState<ContainerSummary | null>(null);
   const [initialTab, setInitialTab] = useState<'overview' | 'terminal'>('overview');
   const [busy, setBusy] = useState<Record<string, string>>({});
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const order = useGroupOrder('containers');
 
   const filtered = containers.filter(
     (c) =>
@@ -38,17 +45,14 @@ export function ContainersView({ containers, stats, onRefresh, notify }: Props) 
   // agrupa por projeto compose (labels do Docker — vale para projetos que
   // subiram por fora do DockDesk também)
   const groups = new Map<string, ContainerSummary[]>();
-  const loose: ContainerSummary[] = [];
   for (const c of filtered) {
-    if (c.composeProject) {
-      const list = groups.get(c.composeProject) ?? [];
-      list.push(c);
-      groups.set(c.composeProject, list);
-    } else {
-      loose.push(c);
-    }
+    const key = c.composeProject ?? LOOSE;
+    const list = groups.get(key) ?? [];
+    list.push(c);
+    groups.set(key, list);
   }
-  const projectNames = [...groups.keys()].sort((a, b) => a.localeCompare(b));
+  const orderedKeys = order.sortKeys([...groups.keys()]);
+  const hasProjects = orderedKeys.some((k) => k !== LOOSE);
 
   // mantém o drawer sincronizado com o polling
   const selectedLive = selected
@@ -71,7 +75,7 @@ export function ContainersView({ containers, stats, onRefresh, notify }: Props) 
       await onRefresh();
       if (action === 'remove' && selected?.id === c.id) setSelected(null);
     } catch (err: any) {
-      notify(`Falha ao executar "${action}" em ${c.name}: ${err.message}`);
+      notify(t('action_fail', { action, name: c.name, msg: err.message }));
     } finally {
       setBusy((b) => {
         const next = { ...b };
@@ -116,7 +120,7 @@ export function ContainersView({ containers, stats, onRefresh, notify }: Props) 
         </div>
 
         <span className={`badge ${c.state}`} data-testid={`badge-${c.name}`}>
-          {stateLabel(c.state)}
+          {t(`state_${c.state}`)}
         </span>
 
         <div className="metrics">
@@ -159,7 +163,7 @@ export function ContainersView({ containers, stats, onRefresh, notify }: Props) 
             <>
               <button
                 className="btn icon-only"
-                title="Reiniciar"
+                title={t('action_restart')}
                 data-testid={`restart-${c.name}`}
                 onClick={() => runAction(c, 'restart')}
               >
@@ -167,7 +171,7 @@ export function ContainersView({ containers, stats, onRefresh, notify }: Props) 
               </button>
               <button
                 className="btn icon-only danger"
-                title="Parar"
+                title={t('action_stop')}
                 data-testid={`stop-${c.name}`}
                 onClick={() => runAction(c, 'stop')}
               >
@@ -175,7 +179,7 @@ export function ContainersView({ containers, stats, onRefresh, notify }: Props) 
               </button>
               <button
                 className="btn icon-only"
-                title="Abrir terminal"
+                title={t('action_open_terminal')}
                 data-testid={`term-${c.name}`}
                 onClick={() => {
                   setInitialTab('terminal');
@@ -189,7 +193,7 @@ export function ContainersView({ containers, stats, onRefresh, notify }: Props) 
             <>
               <button
                 className="btn icon-only success"
-                title="Ligar"
+                title={t('action_start')}
                 data-testid={`start-${c.name}`}
                 onClick={() => runAction(c, 'start')}
               >
@@ -201,12 +205,12 @@ export function ContainersView({ containers, stats, onRefresh, notify }: Props) 
                   data-testid={`confirm-remove-${c.name}`}
                   onClick={() => runAction(c, 'remove')}
                 >
-                  Confirmar?
+                  {t('confirm')}
                 </button>
               ) : (
                 <button
                   className="btn icon-only danger"
-                  title="Remover container"
+                  title={t('action_remove_container')}
                   data-testid={`remove-${c.name}`}
                   onClick={() => setConfirmRemove(c.id)}
                 >
@@ -224,15 +228,12 @@ export function ContainersView({ containers, stats, onRefresh, notify }: Props) 
     <section className="view" data-testid="containers-view">
       <div className="view-header">
         <div>
-          <h1 className="view-title">Containers</h1>
-          <div className="view-sub">
-            Gerencie seus containers sem decorar comandos — clique em um card para ver
-            detalhes, terminal, rotinas e logs.
-          </div>
+          <h1 className="view-title">{t('containers_title')}</h1>
+          <div className="view-sub">{t('containers_sub')}</div>
         </div>
         <input
           className="search-input"
-          placeholder="Buscar por nome ou imagem…"
+          placeholder={t('search_placeholder')}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           data-testid="container-search"
@@ -242,71 +243,58 @@ export function ContainersView({ containers, stats, onRefresh, notify }: Props) 
       {filtered.length === 0 ? (
         <div className="empty-state">
           <Boxes size={44} />
-          <h3>Nenhum container encontrado</h3>
+          <h3>{t('empty_containers_title')}</h3>
           <p>
             {containers.length === 0
-              ? 'Quando você criar containers (ou subir um projeto Compose), eles aparecem aqui.'
-              : 'Nenhum container corresponde à sua busca.'}
+              ? t('empty_containers_none')
+              : t('empty_containers_search')}
           </p>
         </div>
       ) : (
-        <>
-          {projectNames.map((project) => {
-            const items = groups.get(project)!;
-            const runningCount = items.filter((c) => c.state === 'running').length;
-            const isCollapsed = collapsed.has(project);
-            return (
-              <section key={project} className="group-section" data-testid={`group-${project}`}>
-                <button
+        orderedKeys.map((key) => {
+          const items = groups.get(key)!;
+          const isLoose = key === LOOSE;
+          const runningCount = items.filter((c) => c.state === 'running').length;
+          const isCollapsed = collapsed.has(key);
+          const testName = isLoose ? 'avulsos' : key;
+          const showHeader = !isLoose || hasProjects;
+          return (
+            <section key={key} className="group-section" data-testid={`group-${testName}`}>
+              {showHeader && (
+                <div
                   className="group-header"
-                  onClick={() => toggleGroup(project)}
-                  data-testid={`group-toggle-${project}`}
+                  draggable
+                  onDragStart={order.onDragStart(key)}
+                  onDragOver={order.onDragOver}
+                  onDrop={order.makeOnDrop(key, [...groups.keys()])}
+                  onClick={() => toggleGroup(key)}
+                  data-testid={`group-toggle-${testName}`}
+                  title={t('drag_reorder')}
                 >
-                  <ChevronDown
-                    size={16}
-                    className={`chevron ${isCollapsed ? 'closed' : ''}`}
-                  />
-                  <Layers size={15} color="#22d3ee" />
-                  <span className="group-name">{project}</span>
-                  <span className="compose-tag">compose</span>
+                  <GripVertical size={14} className="grip" />
+                  <ChevronDown size={16} className={`chevron ${isCollapsed ? 'closed' : ''}`} />
+                  {isLoose ? (
+                    <Boxes size={15} color="#8b949e" />
+                  ) : (
+                    <Layers size={15} color="#22d3ee" />
+                  )}
+                  <span className="group-name">
+                    {isLoose ? t('group_loose_containers') : key}
+                  </span>
+                  {!isLoose && <span className="compose-tag">{t('tag_compose')}</span>}
                   <span className={`badge ${runningCount > 0 ? 'running' : 'exited'}`}>
-                    {runningCount}/{items.length} rodando
+                    {t('running_count', { n: runningCount, total: items.length })}
                   </span>
-                </button>
-                {!isCollapsed && (
-                  <div className="container-list grouped">{items.map(renderCard)}</div>
-                )}
-              </section>
-            );
-          })}
-
-          {loose.length > 0 && (
-            <section className="group-section" data-testid="group-avulsos">
-              {projectNames.length > 0 && (
-                <button
-                  className="group-header"
-                  onClick={() => toggleGroup('__loose__')}
-                  data-testid="group-toggle-avulsos"
-                >
-                  <ChevronDown
-                    size={16}
-                    className={`chevron ${collapsed.has('__loose__') ? 'closed' : ''}`}
-                  />
-                  <Boxes size={15} color="#8b949e" />
-                  <span className="group-name">Containers avulsos</span>
-                  <span className={`badge ${loose.some((c) => c.state === 'running') ? 'running' : 'exited'}`}>
-                    {loose.filter((c) => c.state === 'running').length}/{loose.length} rodando
-                  </span>
-                </button>
+                </div>
               )}
-              {!collapsed.has('__loose__') && (
-                <div className={`container-list ${projectNames.length > 0 ? 'grouped' : ''}`}>
-                  {loose.map(renderCard)}
+              {!isCollapsed && (
+                <div className={`container-list ${showHeader ? 'grouped' : ''}`}>
+                  {items.map(renderCard)}
                 </div>
               )}
             </section>
-          )}
-        </>
+          );
+        })
       )}
 
       {selectedLive && (

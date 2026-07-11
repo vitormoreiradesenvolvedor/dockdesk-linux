@@ -36,6 +36,39 @@ test('abre o app e conecta na engine do Docker', async () => {
   await expect(page.getByTestId('containers-view')).toBeVisible();
 });
 
+test('alterna entre modo claro e escuro', async () => {
+  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
+  await page.getByTestId('theme-toggle').click();
+  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('light');
+  expect(await page.evaluate(() => localStorage.getItem('dockdesk-theme'))).toBe('light');
+  await page.getByTestId('theme-toggle').click();
+  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
+});
+
+test('troca o idioma do app (6 idiomas) e volta para pt-BR', async () => {
+  const select = page.getByTestId('lang-select');
+  await expect(page.getByTestId('nav-compose')).toContainText('Projetos Compose');
+
+  await select.selectOption('en');
+  await expect(page.getByTestId('nav-compose')).toContainText('Compose Projects');
+  await expect(page.getByTestId('nav-networks')).toContainText('Networks');
+
+  await select.selectOption('zh');
+  await expect(page.getByTestId('nav-containers')).toContainText('容器');
+
+  await select.selectOption('hi');
+  await expect(page.getByTestId('nav-images')).toContainText('इमेज');
+
+  await select.selectOption('es');
+  await expect(page.getByTestId('nav-volumes')).toContainText('Volúmenes');
+
+  await select.selectOption('fr');
+  await expect(page.getByTestId('nav-networks')).toContainText('Réseaux');
+
+  await select.selectOption('pt');
+  await expect(page.getByTestId('nav-compose')).toContainText('Projetos Compose');
+});
+
 test('lista o container de teste como Rodando', async () => {
   const card = page.getByTestId(`container-${FIXTURE_CONTAINER}`);
   await expect(card).toBeVisible({ timeout: 20_000 });
@@ -287,6 +320,47 @@ test('containers do compose aparecem agrupados em sanfonado do projeto', async (
   await expect(composeContainer).toBeVisible();
 });
 
+test('reordena grupos arrastando e a ordem fica salva', async () => {
+  const groupOrder = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll('[data-testid="containers-view"] .group-section')].map(
+        (el) => el.getAttribute('data-testid')
+      )
+    );
+
+  // ordem padrão: grupos de projeto antes, avulsos por último
+  let order = await groupOrder();
+  expect(order.indexOf('group-avulsos')).toBeGreaterThan(
+    order.indexOf(`group-${COMPOSE_PROJECT_DIR_NAME}`)
+  );
+
+  // arrasta o grupo de avulsos para a posição do grupo do projeto de teste
+  const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
+  await page.getByTestId('group-toggle-avulsos').dispatchEvent('dragstart', { dataTransfer });
+  await page
+    .getByTestId(`group-toggle-${COMPOSE_PROJECT_DIR_NAME}`)
+    .dispatchEvent('dragover', { dataTransfer });
+  await page
+    .getByTestId(`group-toggle-${COMPOSE_PROJECT_DIR_NAME}`)
+    .dispatchEvent('drop', { dataTransfer });
+
+  await expect
+    .poll(async () => {
+      const o = await groupOrder();
+      return o.indexOf('group-avulsos') < o.indexOf(`group-${COMPOSE_PROJECT_DIR_NAME}`);
+    })
+    .toBe(true);
+
+  // a ordem fica persistida para as próximas aberturas do app
+  const saved = JSON.parse(
+    (await page.evaluate(() => localStorage.getItem('dockdesk-order-containers')))!
+  ) as string[];
+  expect(saved.indexOf('__loose__')).toBeGreaterThanOrEqual(0);
+  expect(saved.indexOf('__loose__')).toBeLessThan(
+    saved.indexOf(COMPOSE_PROJECT_DIR_NAME)
+  );
+});
+
 test('derruba o projeto compose (down)', async () => {
   test.setTimeout(180_000);
   await page.getByTestId('nav-compose').click();
@@ -307,12 +381,12 @@ test('derruba o projeto compose (down)', async () => {
   await expect(page.getByTestId(`compose-restart-${COMPOSE_PROJECT_DIR_NAME}`)).toHaveCount(0);
 });
 
-test('lista imagens locais', async () => {
+test('lista imagens locais agrupadas', async () => {
   await page.getByTestId('nav-images').click();
   await expect(page.getByTestId('images-view')).toBeVisible();
-  await expect(page.getByTestId('images-view')).toContainText('alpine', {
-    timeout: 20_000,
-  });
+  // alpine não foi construída por compose: fica no grupo de avulsas
+  await expect(page.getByTestId('image-group-avulsas')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('image-group-avulsas')).toContainText('alpine');
 });
 
 test('remove o container de teste pela interface', async () => {

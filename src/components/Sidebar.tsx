@@ -1,4 +1,7 @@
-import { Anchor, Boxes, Layers, HardDrive, Database, Network } from 'lucide-react';
+import { Boxes, Layers, HardDrive, Database, Network, Sun, Moon, Globe } from 'lucide-react';
+import { useI18n, LANGS, type Lang } from '../i18n';
+import type { Theme } from '../hooks/useTheme';
+import { Logo } from './Logo';
 
 export type ViewName = 'containers' | 'compose' | 'images' | 'volumes' | 'networks';
 
@@ -8,71 +11,92 @@ interface Props {
   engine: { ok: boolean; version?: string; error?: string };
   runningCount: number;
   totalCount: number;
+  theme: Theme;
+  onToggleTheme: () => void;
 }
 
-export function Sidebar({ view, onNavigate, engine, runningCount, totalCount }: Props) {
+export function Sidebar({
+  view,
+  onNavigate,
+  engine,
+  runningCount,
+  totalCount,
+  theme,
+  onToggleTheme,
+}: Props) {
+  const { t, lang, setLang } = useI18n();
+
+  const items: { key: ViewName; icon: typeof Boxes; label: string; badge?: string }[] = [
+    {
+      key: 'containers',
+      icon: Boxes,
+      label: t('nav_containers'),
+      badge: `${runningCount}/${totalCount}`,
+    },
+    { key: 'compose', icon: Layers, label: t('nav_compose') },
+    { key: 'images', icon: HardDrive, label: t('nav_images') },
+    { key: 'volumes', icon: Database, label: t('nav_volumes') },
+    { key: 'networks', icon: Network, label: t('nav_networks') },
+  ];
+
   return (
     <aside className="sidebar">
       <div className="logo">
         <div className="logo-mark">
-          <Anchor size={19} strokeWidth={2.4} />
+          <Logo size={24} />
         </div>
         <div className="logo-name">
           Dock<span>Desk</span>
         </div>
       </div>
 
-      <button
-        className={`nav-item ${view === 'containers' ? 'active' : ''}`}
-        onClick={() => onNavigate('containers')}
-        data-testid="nav-containers"
-      >
-        <Boxes size={17} />
-        Containers
-        <span className="nav-badge">
-          {runningCount}/{totalCount}
-        </span>
-      </button>
+      {items.map(({ key, icon: Icon, label, badge }) => (
+        <button
+          key={key}
+          className={`nav-item ${view === key ? 'active' : ''}`}
+          onClick={() => onNavigate(key)}
+          data-testid={`nav-${key}`}
+        >
+          <Icon size={17} />
+          {label}
+          {badge && <span className="nav-badge">{badge}</span>}
+        </button>
+      ))}
 
-      <button
-        className={`nav-item ${view === 'compose' ? 'active' : ''}`}
-        onClick={() => onNavigate('compose')}
-        data-testid="nav-compose"
-      >
-        <Layers size={17} />
-        Projetos Compose
-      </button>
+      <div className="sidebar-settings">
+        <button
+          className="theme-toggle"
+          onClick={onToggleTheme}
+          title={theme === 'dark' ? t('theme_light') : t('theme_dark')}
+          data-testid="theme-toggle"
+        >
+          <span className={`theme-opt ${theme === 'light' ? 'active' : ''}`} data-testid="theme-sun">
+            <Sun size={14} />
+          </span>
+          <span className={`theme-opt ${theme === 'dark' ? 'active' : ''}`} data-testid="theme-moon">
+            <Moon size={14} />
+          </span>
+        </button>
 
-      <button
-        className={`nav-item ${view === 'images' ? 'active' : ''}`}
-        onClick={() => onNavigate('images')}
-        data-testid="nav-images"
-      >
-        <HardDrive size={17} />
-        Imagens
-      </button>
-
-      <button
-        className={`nav-item ${view === 'volumes' ? 'active' : ''}`}
-        onClick={() => onNavigate('volumes')}
-        data-testid="nav-volumes"
-      >
-        <Database size={17} />
-        Volumes
-      </button>
-
-      <button
-        className={`nav-item ${view === 'networks' ? 'active' : ''}`}
-        onClick={() => onNavigate('networks')}
-        data-testid="nav-networks"
-      >
-        <Network size={17} />
-        Redes
-      </button>
+        <label className="lang-select" title={t('language')}>
+          <Globe size={14} />
+          <select
+            value={lang}
+            onChange={(e) => setLang(e.target.value as Lang)}
+            data-testid="lang-select"
+          >
+            {LANGS.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.native}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       <div className="sidebar-footer" data-testid="engine-status">
         <span className={`engine-dot ${engine.ok ? 'ok' : ''}`} />
-        {engine.ok ? `Docker ${engine.version}` : 'Docker indisponível'}
+        {engine.ok ? `Docker ${engine.version}` : t('engine_unavailable')}
       </div>
     </aside>
   );

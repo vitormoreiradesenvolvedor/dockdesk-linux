@@ -3,6 +3,7 @@ import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { TerminalSquare, Loader2, Power, Eraser } from 'lucide-react';
 import type { ContainerSummary } from '../global';
+import { useI18n } from '../i18n';
 
 interface Props {
   container: ContainerSummary;
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function TerminalPane({ container, notify, pendingCommand, onCommandSent }: Props) {
+  const { t } = useI18n();
   const [shells, setShells] = useState<string[] | null>(null);
   const [shell, setShell] = useState<string | null>(null);
   const [sessionShell, setSessionShell] = useState<string | null>(null);
@@ -46,9 +48,7 @@ export function TerminalPane({ container, notify, pendingCommand, onCommandSent 
     return (
       <div className="centered-note" data-testid="terminal-pane">
         <Power size={36} />
-        <div>
-          O container está parado. Ligue o container para abrir um terminal dentro dele.
-        </div>
+        <div>{t('term_stopped')}</div>
       </div>
     );
   }
@@ -74,20 +74,17 @@ export function TerminalPane({ container, notify, pendingCommand, onCommandSent 
       {shells === null ? (
         <div className="centered-note">
           <Loader2 size={28} className="spin" />
-          <div>Detectando shells disponíveis na imagem…</div>
+          <div>{t('term_detecting')}</div>
         </div>
       ) : shells.length === 0 ? (
         <div className="centered-note">
           <TerminalSquare size={36} />
-          <div>
-            Nenhum shell foi encontrado nesta imagem (imagens “distroless” não trazem
-            shell). Não é possível abrir um terminal aqui.
-          </div>
+          <div>{t('term_no_shell')}</div>
         </div>
       ) : (
         <>
           <p className="term-hint" style={{ marginBottom: 12 }}>
-            Escolha o shell para entrar no container (equivalente a{' '}
+            {t('term_choose')}{' '}
             <code>docker exec -it {container.name} &lt;shell&gt;</code>):
           </p>
           <div className="shell-picker" data-testid="shell-picker">
@@ -110,7 +107,7 @@ export function TerminalPane({ container, notify, pendingCommand, onCommandSent 
             onClick={() => shell && setSessionShell(shell)}
             data-testid="open-terminal"
           >
-            <TerminalSquare size={15} /> Abrir terminal ({shell})
+            <TerminalSquare size={15} /> {t('term_open', { shell: shell ?? '' })}
           </button>
         </>
       )}
@@ -133,6 +130,7 @@ function TerminalSession({
   pendingCommand: string | null;
   onCommandSent?: () => void;
 }) {
+  const { t } = useI18n();
   const wrapRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const termIdRef = useRef<string | null>(null);
@@ -192,7 +190,7 @@ function TerminalSession({
         readyTimer = setTimeout(() => setReady(true), 500);
       })
       .catch((err) => {
-        notify(`Não foi possível abrir o terminal: ${err.message}`);
+        notify(t('term_open_fail', { msg: err.message }));
         onEnd();
       });
 
@@ -217,7 +215,7 @@ function TerminalSession({
       xterm.dispose();
       xtermRef.current = null;
     };
-  }, [containerId, shell, notify, onEnd]);
+  }, [containerId, shell, notify, onEnd, t]);
 
   // rotina pendente: envia o comando quando a sessão estiver pronta
   useEffect(() => {
@@ -237,23 +235,22 @@ function TerminalSession({
       <p className="term-hint">
         {exited ? (
           <>
-            Sessão encerrada.{' '}
+            {t('term_ended')}{' '}
             <button className="btn sm" onClick={onEnd} data-testid="terminal-back">
-              Voltar
+              {t('term_back')}
             </button>
           </>
         ) : (
           <>
-            Conectado com <code>{shell}</code> — digite <code>exit</code> para encerrar a
-            sessão.
+            {t('term_connected')} <code>{shell}</code> {t('term_connected_hint')}
             <button
               className="btn sm"
               style={{ marginLeft: 10 }}
               onClick={() => xtermRef.current?.clear()}
               data-testid="terminal-clear"
-              title="Limpar a tela do terminal"
+              title={t('term_clear')}
             >
-              <Eraser size={13} /> Limpar
+              <Eraser size={13} /> {t('term_clear')}
             </button>
           </>
         )}

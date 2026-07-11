@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { useI18n } from '../i18n';
 
 export function LogsPane({ containerId }: { containerId: string }) {
+  const { t } = useI18n();
   const [text, setText] = useState('');
   const preRef = useRef<HTMLPreElement>(null);
   const pinnedToBottom = useRef(true);
@@ -34,7 +36,7 @@ export function LogsPane({ containerId }: { containerId: string }) {
         pinnedToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 30;
       }}
     >
-      {text || 'Aguardando logs…'}
+      {text || t('logs_waiting')}
     </pre>
   );
 }

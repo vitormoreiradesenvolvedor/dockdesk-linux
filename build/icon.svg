@@ -1,32 +1,53 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <!-- fundo -->
-  <rect x="16" y="16" width="480" height="480" rx="112" fill="#0f172a"/>
+  <defs>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4cc3f7"/>
+      <stop offset="1" stop-color="#1e3a8a"/>
+    </linearGradient>
+  </defs>
+  <!-- mar -->
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#sea)"/>
 
-  <!-- pinguim: corpo -->
-  <ellipse cx="256" cy="242" rx="66" ry="92" fill="#1e293b"/>
-  <!-- asas -->
-  <ellipse cx="194" cy="256" rx="14" ry="52" fill="#16202e"/>
-  <ellipse cx="318" cy="256" rx="14" ry="52" fill="#16202e"/>
-  <!-- barriga -->
-  <ellipse cx="256" cy="266" rx="42" ry="60" fill="#f1f5f9"/>
-  <!-- olhos -->
-  <circle cx="234" cy="196" r="8" fill="#f1f5f9"/>
-  <circle cx="278" cy="196" r="8" fill="#f1f5f9"/>
-  <circle cx="236" cy="197" r="3.5" fill="#0f172a"/>
-  <circle cx="276" cy="197" r="3.5" fill="#0f172a"/>
-  <!-- bico -->
-  <polygon points="243,206 269,206 256,224" fill="#f59e0b"/>
-  <!-- pés -->
-  <ellipse cx="234" cy="330" rx="17" ry="7" fill="#f59e0b"/>
-  <ellipse cx="278" cy="330" rx="17" ry="7" fill="#f59e0b"/>
+  <!-- ondas suaves -->
+  <rect x="250" y="205" width="90" height="11" rx="5.5" fill="#e0f2fe" fill-opacity="0.4"/>
+  <rect x="370" y="180" width="70" height="11" rx="5.5" fill="#e0f2fe" fill-opacity="0.3"/>
+  <rect x="60" y="250" width="80" height="11" rx="5.5" fill="#e0f2fe" fill-opacity="0.3"/>
 
-  <!-- doca: tábua e pilares -->
-  <rect x="84" y="336" width="344" height="24" rx="9" fill="#b45309"/>
-  <rect x="122" y="360" width="20" height="66" rx="6" fill="#7c3a12"/>
-  <rect x="370" y="360" width="20" height="66" rx="6" fill="#7c3a12"/>
+  <!-- bloco de gelo -->
+  <rect x="50" y="196" width="172" height="28" rx="14" fill="#f1f5f9"/>
 
-  <!-- água -->
-  <rect x="104" y="440" width="128" height="16" rx="8" fill="#38bdf8" fill-opacity="0.85"/>
-  <rect x="262" y="440" width="150" height="16" rx="8" fill="#38bdf8" fill-opacity="0.45"/>
-  <rect x="170" y="470" width="170" height="14" rx="7" fill="#38bdf8" fill-opacity="0.3"/>
+  <!-- pinguim -->
+  <ellipse cx="125" cy="142" rx="45" ry="61" fill="#0b1220"/>
+  <ellipse cx="125" cy="155" rx="27" ry="40" fill="#f8fafc"/>
+  <circle cx="110" cy="112" r="6.5" fill="#f8fafc"/>
+  <circle cx="140" cy="112" r="6.5" fill="#f8fafc"/>
+  <circle cx="111.5" cy="113" r="2.8" fill="#0b1220"/>
+  <circle cx="138.5" cy="113" r="2.8" fill="#0b1220"/>
+  <polygon points="115,124 135,124 125,137" fill="#f59e0b"/>
+  <ellipse cx="108" cy="198" rx="13" ry="5.5" fill="#f59e0b"/>
+  <ellipse cx="142" cy="198" rx="13" ry="5.5" fill="#f59e0b"/>
+
+  <!-- vara de pescar -->
+  <polygon points="155,153 159,146 352,55 349,63" fill="#92400e"/>
+  <!-- linha -->
+  <rect x="349" y="58" width="3" height="212" fill="#e2e8f0"/>
+
+  <!-- âncora (isca) -->
+  <circle cx="350.5" cy="276" r="9" fill="#e2e8f0"/>
+  <circle cx="350.5" cy="276" r="4.5" fill="#2f6fd0"/>
+  <rect x="347.5" y="282" width="6" height="48" rx="3" fill="#e2e8f0"/>
+  <rect x="329" y="294" width="43" height="6" rx="3" fill="#e2e8f0"/>
+  <polygon points="325,312 351,330 351,318 335,306" fill="#e2e8f0"/>
+  <polygon points="376,312 350,330 350,318 366,306" fill="#e2e8f0"/>
+
+  <!-- baleia -->
+  <ellipse cx="320" cy="424" rx="132" ry="60" fill="#0f2740"/>
+  <ellipse cx="320" cy="452" rx="110" ry="32" fill="#14304a"/>
+  <polygon points="432,404 496,362 476,428" fill="#0f2740"/>
+  <circle cx="268" cy="398" r="7" fill="#f8fafc"/>
+  <circle cx="269.5" cy="399" r="3" fill="#0b1220"/>
+
+  <!-- bolhas da baleia -->
+  <circle cx="262" cy="346" r="5" fill="#bfe3ff" fill-opacity="0.8"/>
+  <circle cx="250" cy="328" r="3.6" fill="#bfe3ff" fill-opacity="0.6"/>
 </svg>
