@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Guarda local da master (roda em QUALQUER atualização de refs, inclusive
+# merge, commit, reset e criação de branch — não dá para burlar com fluxos
+# alternativos de merge):
+#
+#  1. Usuário fora da whitelist NÃO altera refs/heads/master localmente
+#     (commit, merge, rebase, reset). A única exceção é sincronizar a master
+#     local com a origin/master (git pull --ff-only), que continua liberada.
+#     O sentido permitido de merge é: git checkout XXX && git merge master.
+#  2. Usuário fora da whitelist NÃO cria branch a partir da master
+#     (nova branch apontando para o commit atual da master).
+#  3. Branches novas precisam seguir o padrão de nome do projeto
+#     (docs/padroes-git-branch-commit-pr.md) — exceto para autorizados.
+
+state="$1"
+# só o estado "prepared" pode abortar a transação
+[ "$state" = "prepared" ] || exit 0
+
+source "$(git rev-parse --show-toplevel)/.githooks/lib.sh"
+
+is_authorized && exit 0
+
+ZERO="0000000000000000000000000000000000000000"
+master_oid="$(git rev-parse -q --verify refs/heads/master 2>/dev/null || true)"
+origin_master_oid="$(git rev-parse -q --verify refs/remotes/origin/master 2>/dev/null || true)"
+
+while read -r old new ref; do
+  case "$ref" in
+    refs/heads/master)
+      # criação da master local (clone/checkout inicial) sincronizada: ok
+      if [ "$new" = "$origin_master_oid" ] && [ -n "$origin_master_oid" ]; then
+        continue
+      fi
+      deny "Alterar a master localmente é restrito a usuários autorizados (.github/authorized-users.json).
+  Fluxo permitido: git checkout SUA-BRANCH && git merge master"
+      ;;
+    refs/heads/*)
+      branch="${ref#refs/heads/}"
+      if [ "$old" = "$ZERO" ]; then
+        # bloqueia criar branch a partir da master
+        if [ -n "$master_oid" ] && [ "$new" = "$master_oid" ]; then
+          deny "Criar branch a partir da master é restrito a usuários autorizados.
+  Crie sua branch a partir da development: git checkout development && git checkout -b feature/minha-mudanca"
+        fi
+        # valida o padrão de nome de branches novas
+        if [ "$branch" != "development" ] && ! [[ "$branch" =~ $BRANCH_REGEX ]]; then
+          deny "Nome de branch fora do padrão: \"$branch\".
+  Use: acao/descricao-em-kebab-case (ex.: feature/add-login-page).
+  Ações: feature|add|mod|fix|del|rename|mov|refactor|style|docs|test|chore|perf.
+  Detalhes em docs/padroes-git-branch-commit-pr.md"
+        fi
+      fi
+      ;;
+  esac
+done
+
+exit 0

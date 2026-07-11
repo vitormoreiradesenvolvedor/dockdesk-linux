@@ -1,0 +1,63 @@
+# Toda atualização da master:
+#  1. lê a versão do package.json
+#  2. se for igual ou inferior à maior tag existente -> pipeline FALHA
+#  3. se for superior -> cria a tag vX.Y.Z, gera o AppImage e publica
+#     um GitHub Release com o binário anexado
+name: Release - versão, tag e AppImage
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Verifica se a versão é superior às tags existentes
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Versão no package.json: $VERSION"
+          LATEST=$(git tag -l 'v*' --sort=-v:refname | head -n1)
+          echo "Maior tag existente: ${LATEST:-nenhuma}"
+          if [ -n "$LATEST" ]; then
+            HIGHEST=$(printf '%s\n%s\n' "${LATEST#v}" "$VERSION" | sort -V | tail -n1)
+            if [ "$VERSION" = "${LATEST#v}" ] || [ "$HIGHEST" != "$VERSION" ]; then
+              echo "::error::A versão $VERSION do package.json é igual ou inferior à tag existente $LATEST. Aumente a versão antes de atualizar a master."
+              exit 1
+            fi
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Instala dependências
+        run: npm ci
+
+      - name: Gera o AppImage
+        run: npm run dist
+
+      - name: Cria a tag e publica o Release com o AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+          gh release create "v$VERSION" \
+            --title "DockDesk v$VERSION" \
+            --generate-notes \
+            release/DockDesk-"$VERSION".AppImage

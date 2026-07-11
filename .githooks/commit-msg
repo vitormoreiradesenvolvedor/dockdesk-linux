@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Valida a mensagem de commit contra o padrão do projeto
+# (docs/padroes-git-branch-commit-pr.md): **Ação:** descrição
+# Usuários na whitelist (.github/authorized-users.json) são isentos.
+
+source "$(git rev-parse --show-toplevel)/.githooks/lib.sh"
+
+is_authorized && exit 0
+
+msg="$(head -n1 "$1")"
+
+# merges, reverts e fixups automáticos são liberados
+case "$msg" in
+  Merge\ *|Revert\ *|fixup!*|squash!*) exit 0 ;;
+esac
+
+if ! [[ "$msg" =~ $COMMIT_REGEX ]]; then
+  deny "Mensagem de commit fora do padrão: \"$msg\".
+  Use: **Ação:** descrição (ex.: **Add:** Open Modal).
+  Ações: Feature|Add|Mod|Fix|Del|Rename|Mov|Refactor|Style|Docs|Test|Chore|Perf.
+  Detalhes em docs/padroes-git-branch-commit-pr.md"
+fi
+
+exit 0

@@ -34,6 +34,28 @@ npm run test:e2e     # testes end-to-end (Playwright + Docker real)
 npm run dist         # gera o AppImage em release/
 ```
 
+## Fluxo de Git e governança
+
+O fluxo é único: **master ⬅ development**. As regras são aplicadas em duas camadas —
+hooks locais (`.githooks/`, ativados automaticamente pelo `npm install` via script
+`prepare`) e workflows no GitHub (`.github/workflows/guard-*.yml`). A whitelist de
+usuários autorizados fica em [`.github/authorized-users.json`](.github/authorized-users.json),
+compartilhada pelas duas camadas.
+
+Para quem **não** está na whitelist:
+
+- Não cria branch a partir da `master` (crie da `development`);
+- Não altera a `master` local (commit/merge/reset) — o único sentido de merge
+  permitido é `git checkout SUA-BRANCH && git merge master`;
+- Não abre PR para a `master`, nem PR partindo da `master`;
+- Nome de branch, mensagens de commit e título de PR devem seguir
+  [docs/padroes-git-branch-commit-pr.md](docs/padroes-git-branch-commit-pr.md)
+  (`acao/descricao-kebab-case` e `**Ação:** descrição`).
+
+A cada atualização da `master`, o workflow de release compara a versão do
+`package.json` com as tags existentes: versão igual ou inferior reprova o pipeline;
+versão superior cria a tag `vX.Y.Z`, gera o AppImage e publica o Release.
+
 ## Arquitetura
 
 - `electron/` — processo principal: fala com o Docker via socket

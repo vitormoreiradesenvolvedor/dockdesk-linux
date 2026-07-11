@@ -1,0 +1,41 @@
+# Valida o nome das branches contra o padrão do projeto
+# (docs/padroes-git-branch-commit-pr.md). Usuários autorizados são isentos.
+name: Guard - nome da branch
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  push:
+    branches-ignore: [master, development]
+
+permissions:
+  contents: read
+
+jobs:
+  branch-name:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Valida padrão do nome
+        env:
+          ACTOR: ${{ github.actor }}
+          BRANCH: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+        run: |
+          AUTHORIZED=$(node -e '
+            const list = require("./.github/authorized-users.json").authorized || [];
+            const actor = process.env.ACTOR.toLowerCase();
+            console.log(list.some(u => (u.github||"").toLowerCase() === actor) ? "yes" : "no");
+          ')
+          if [ "$AUTHORIZED" = "yes" ]; then
+            echo "✔ usuário autorizado ($ACTOR): isento da validação"
+            exit 0
+          fi
+          case "$BRANCH" in
+            master|development) echo "✔ branch de fluxo"; exit 0 ;;
+          esac
+          if echo "$BRANCH" | grep -qE '^(feature|add|mod|fix|del|rename|mov|refactor|style|docs|test|chore|perf)/[a-z0-9]+(-[a-z0-9]+)*$'; then
+            echo "✔ nome de branch válido: $BRANCH"
+          else
+            echo "::error::Nome de branch fora do padrão: \"$BRANCH\". Use acao/descricao-em-kebab-case (ex.: feature/add-login-page). Veja docs/padroes-git-branch-commit-pr.md"
+            exit 1
+          fi

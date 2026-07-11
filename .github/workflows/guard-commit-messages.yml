@@ -1,0 +1,52 @@
+# Valida as mensagens dos commits do PR contra o padrão do projeto:
+# **Ação:** descrição (docs/padroes-git-branch-commit-pr.md).
+# Usuários autorizados são isentos; commits de merge são ignorados.
+name: Guard - mensagens de commit
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  commit-messages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Valida commits do PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          AUTHORIZED=$(node -e '
+            const list = require("./.github/authorized-users.json").authorized || [];
+            const actor = process.env.ACTOR.toLowerCase();
+            console.log(list.some(u => (u.github||"").toLowerCase() === actor) ? "yes" : "no");
+          ')
+          if [ "$AUTHORIZED" = "yes" ]; then
+            echo "✔ usuário autorizado ($ACTOR): isento da validação"
+            exit 0
+          fi
+
+          # primeira linha da mensagem de cada commit do PR
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/commits" --paginate \
+            --jq '.[].commit.message | split("\n")[0]' > /tmp/first-lines.txt
+
+          FAIL=0
+          while IFS= read -r msg; do
+            [ -z "$msg" ] && continue
+            case "$msg" in
+              Merge\ *|Revert\ *|fixup!*|squash!*) continue ;;
+            esac
+            if ! echo "$msg" | grep -qE '^\*\*(Feature|Add|Mod|Fix|Del|Rename|Mov|Refactor|Style|Docs|Test|Chore|Perf):\*\* .+'; then
+              echo "::error::Commit fora do padrão: \"$msg\". Use: **Ação:** descrição (ex.: **Add:** Open Modal)."
+              FAIL=1
+            fi
+          done < /tmp/first-lines.txt
+
+          [ "$FAIL" = "0" ] && echo "✔ todas as mensagens dentro do padrão"
+          exit $FAIL

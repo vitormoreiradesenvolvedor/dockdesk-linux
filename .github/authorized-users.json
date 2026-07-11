@@ -1,0 +1,10 @@
+{
+  "$comment": "Whitelist de usuários autorizados a operar diretamente na master. Usada pelos hooks locais (.githooks/) e pelos workflows (.github/workflows/).",
+  "authorized": [
+    {
+      "github": "vitormoreiradesenvolvedor",
+      "name": "vitormoreiradesenvolvedor",
+      "email": "vitormoreiradesenvolvedor@gmail.com"
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+# Garante o fluxo único master <- development:
+#  - PR com base master: só de autor autorizado E vindo da development
+#  - PR com head master (master -> qualquer branch): só de autor autorizado
+# PRs em violação são reprovados e fechados automaticamente.
+name: Guard - fluxo de Pull Requests da master
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, edited]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Valida base, origem e autor
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+          BASE: ${{ github.event.pull_request.base.ref }}
+          HEAD: ${{ github.event.pull_request.head.ref }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          AUTHORIZED=$(node -e '
+            const list = require("./.github/authorized-users.json").authorized || [];
+            const actor = process.env.ACTOR.toLowerCase();
+            console.log(list.some(u => (u.github||"").toLowerCase() === actor) ? "yes" : "no");
+          ')
+          echo "actor=$ACTOR authorized=$AUTHORIZED base=$BASE head=$HEAD"
+
+          fail() {
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🚫 **PR bloqueado pelo guard de fluxo**: $1"
+            gh pr close "$PR" --repo "$GITHUB_REPOSITORY"
+            echo "::error::$1"
+            exit 1
+          }
+
+          if [ "$BASE" = "master" ]; then
+            if [ "$AUTHORIZED" != "yes" ]; then
+              fail "apenas usuários autorizados (.github/authorized-users.json) podem abrir PR para a master."
+            fi
+            if [ "$HEAD" != "development" ]; then
+              fail "PRs para a master só podem vir da development (fluxo único master ⬅ development)."
+            fi
+          fi
+
+          if [ "$HEAD" = "master" ] && [ "$AUTHORIZED" != "yes" ]; then
+            fail "apenas usuários autorizados podem abrir PR partindo da master (inclusive para a development)."
+          fi
+
+          echo "✔ fluxo de PR válido"

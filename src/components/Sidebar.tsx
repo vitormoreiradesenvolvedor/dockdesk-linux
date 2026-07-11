@@ -1,7 +1,6 @@
 import { Boxes, Layers, HardDrive, Database, Network, Sun, Moon, Globe } from 'lucide-react';
 import { useI18n, LANGS, type Lang } from '../i18n';
 import type { Theme } from '../hooks/useTheme';
-import { Logo } from './Logo';
 
 export type ViewName = 'containers' | 'compose' | 'images' | 'volumes' | 'networks';
 
@@ -42,7 +41,6 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="logo">
-        <Logo size={34} />
         <div className="logo-name">
           Dock<span>Desk</span>
         </div>

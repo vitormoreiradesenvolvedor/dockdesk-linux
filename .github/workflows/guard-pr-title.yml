@@ -1,0 +1,37 @@
+# Valida o título do Pull Request contra o padrão do projeto:
+# **Ação:** descrição (docs/padroes-git-branch-commit-pr.md).
+# Usuários autorizados são isentos.
+name: Guard - título do Pull Request
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  pr-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Valida título
+        env:
+          ACTOR: ${{ github.actor }}
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          AUTHORIZED=$(node -e '
+            const list = require("./.github/authorized-users.json").authorized || [];
+            const actor = process.env.ACTOR.toLowerCase();
+            console.log(list.some(u => (u.github||"").toLowerCase() === actor) ? "yes" : "no");
+          ')
+          if [ "$AUTHORIZED" = "yes" ]; then
+            echo "✔ usuário autorizado ($ACTOR): isento da validação"
+            exit 0
+          fi
+          if echo "$TITLE" | grep -qE '^\*\*(Feature|Add|Mod|Fix|Del|Rename|Mov|Refactor|Style|Docs|Test|Chore|Perf):\*\* .+'; then
+            echo "✔ título dentro do padrão"
+          else
+            echo "::error::Título do PR fora do padrão: \"$TITLE\". Use: **Ação:** descrição (ex.: **Feature:** nova tela de volumes)."
+            exit 1
+          fi

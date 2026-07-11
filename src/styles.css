@@ -63,6 +63,10 @@
   background: rgba(37, 99, 235, 0.16);
   color: #1d4ed8;
 }
+:root[data-theme='light'] .shell-chip.selected {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
 :root[data-theme='light'] .drawer { box-shadow: -24px 0 60px rgba(30, 41, 59, 0.25); }
 :root[data-theme='light'] .toast { box-shadow: 0 8px 30px rgba(30, 41, 59, 0.25); }
 
@@ -106,12 +110,6 @@ button { font-family: inherit; }
   align-items: center;
   gap: 10px;
   padding: 4px 8px 18px;
-}
-
-.logo-mark-img {
-  border-radius: 9px;
-  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
-  flex-shrink: 0;
 }
 
 .logo-name {
