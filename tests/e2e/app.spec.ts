@@ -184,6 +184,13 @@ test('executa rotina com terminal atrelado à linha e indicador de execução', 
     timeout: 20_000,
   });
 
+  // dá para minimizar o terminal sem matar a sessão, e expandir de volta
+  await page.getByTestId('routine-toggle-term-Diagnóstico').click();
+  await expect(term).toBeHidden();
+  await page.getByTestId('routine-toggle-term-Diagnóstico').click();
+  await expect(term).toBeVisible();
+  await expect(term.locator('.xterm-rows')).toContainText('rotina-simples-777');
+
   // quando o comando termina: indicador some, status de finalizado aparece
   await expect(page.getByTestId('routine-running-Diagnóstico')).toHaveCount(0, {
     timeout: 20_000,
