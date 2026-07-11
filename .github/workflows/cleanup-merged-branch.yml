@@ -1,0 +1,41 @@
+# Apaga a branch de origem quando o PR dela é aceito (merged).
+# As branches master e development são permanentes e nunca são apagadas.
+name: Limpeza - apaga branch após merge
+
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  delete-merged-branch:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apaga a branch de origem
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          case "$HEAD" in
+            master|development)
+              echo "✔ branch permanente ($HEAD): nunca é apagada"
+              exit 0
+              ;;
+          esac
+          if [ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]; then
+            echo "✔ branch de fork ($HEAD_REPO): fora do nosso controle"
+            exit 0
+          fi
+          # a API do GitHub pode devolver 5xx transitório: tenta até 3x
+          for i in 1 2 3; do
+            if gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$HEAD"; then
+              echo "✔ branch $HEAD apagada após o merge"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::warning::não foi possível apagar a branch $HEAD (pode já ter sido removida)"
