@@ -258,11 +258,11 @@ ipcMain.handle('exec:command', (_e, id, cmd) => dockerService.execCommand(id, cm
 
 // ---------- IPC: terminal interativo ----------
 
-ipcMain.handle('term:open', async (event, id, shell, termId) => {
+ipcMain.handle('term:open', async (event, id, spec, termId) => {
   const wc = event.sender;
   await dockerService.openTerminal(
     id,
-    shell,
+    spec,
     termId,
     (chunk) => {
       if (!wc.isDestroyed()) wc.send(`term:data:${termId}`, chunk);

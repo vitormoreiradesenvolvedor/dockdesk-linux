@@ -24,23 +24,12 @@ export function ContainerDetail({ container, initialTab, onClose, onAction, noti
   // de comandos não são perdidos ao alternar entre abas
   const [visited, setVisited] = useState<Set<Tab>>(() => new Set([initialTab]));
   const [details, setDetails] = useState<ContainerDetails | null>(null);
-  const [pendingCommand, setPendingCommand] = useState<string | null>(null);
   const running = container.state === 'running';
 
   const openTab = useCallback((tb: Tab) => {
     setVisited((v) => (v.has(tb) ? v : new Set(v).add(tb)));
     setTab(tb);
   }, []);
-
-  const runInTerminal = useCallback(
-    (cmd: string) => {
-      setPendingCommand(cmd);
-      openTab('terminal');
-    },
-    [openTab]
-  );
-
-  const commandSent = useCallback(() => setPendingCommand(null), []);
 
   useEffect(() => {
     let alive = true;
@@ -127,18 +116,13 @@ export function ContainerDetail({ container, initialTab, onClose, onAction, noti
             <Overview container={container} details={details} />
           </PaneHolder>
           <PaneHolder active={tab === 'terminal'} mounted={visited.has('terminal')}>
-            <TerminalPane
-              container={container}
-              notify={notify}
-              pendingCommand={pendingCommand}
-              onCommandSent={commandSent}
-            />
+            <TerminalPane container={container} notify={notify} />
           </PaneHolder>
           <PaneHolder active={tab === 'exec'} mounted={visited.has('exec')}>
             <ExecPane container={container} notify={notify} />
           </PaneHolder>
           <PaneHolder active={tab === 'routines'} mounted={visited.has('routines')}>
-            <RoutinesPane container={container} onRunInTerminal={runInTerminal} />
+            <RoutinesPane container={container} notify={notify} />
           </PaneHolder>
           <PaneHolder active={tab === 'logs'} mounted={visited.has('logs')}>
             <LogsPane containerId={container.id} />
