@@ -36,6 +36,7 @@
   "build": {
     "appId": "dev.vitormoreira.dockdesk",
     "npmRebuild": false,
+    "publish": null,
     "productName": "DockDesk",
     "files": [
       "electron/**/*",
