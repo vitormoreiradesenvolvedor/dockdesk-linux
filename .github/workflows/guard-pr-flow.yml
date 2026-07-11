@@ -33,8 +33,12 @@ jobs:
           echo "actor=$ACTOR authorized=$AUTHORIZED base=$BASE head=$HEAD"
 
           fail() {
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🚫 **PR bloqueado pelo guard de fluxo**: $1"
-            gh pr close "$PR" --repo "$GITHUB_REPOSITORY"
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🚫 **PR bloqueado pelo guard de fluxo**: $1" || true
+            # a API do GitHub pode devolver 5xx transitório: tenta fechar até 3x
+            for i in 1 2 3; do
+              gh pr close "$PR" --repo "$GITHUB_REPOSITORY" && break
+              sleep 5
+            done
             echo "::error::$1"
             exit 1
           }
