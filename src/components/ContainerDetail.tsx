@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { X, Play, Square, RotateCw } from 'lucide-react';
 import type { ContainerDetails, ContainerSummary } from '../global';
 import { stateLabel } from '../utils';
 import { TerminalPane } from './TerminalPane';
 import { LogsPane } from './LogsPane';
 import { ExecPane } from './ExecPane';
+import { RoutinesPane } from './RoutinesPane';
 
-type Tab = 'overview' | 'terminal' | 'exec' | 'logs';
+type Tab = 'overview' | 'terminal' | 'exec' | 'routines' | 'logs';
 
 interface Props {
   container: ContainerSummary;
@@ -18,8 +19,27 @@ interface Props {
 
 export function ContainerDetail({ container, initialTab, onClose, onAction, notify }: Props) {
   const [tab, setTab] = useState<Tab>(initialTab);
+  // abas já visitadas continuam montadas (só escondidas): terminal e saída
+  // de comandos não são perdidos ao alternar entre abas
+  const [visited, setVisited] = useState<Set<Tab>>(() => new Set([initialTab]));
   const [details, setDetails] = useState<ContainerDetails | null>(null);
+  const [pendingCommand, setPendingCommand] = useState<string | null>(null);
   const running = container.state === 'running';
+
+  const openTab = useCallback((t: Tab) => {
+    setVisited((v) => (v.has(t) ? v : new Set(v).add(t)));
+    setTab(t);
+  }, []);
+
+  const runInTerminal = useCallback(
+    (cmd: string) => {
+      setPendingCommand(cmd);
+      openTab('terminal');
+    },
+    [openTab]
+  );
+
+  const commandSent = useCallback(() => setPendingCommand(null), []);
 
   useEffect(() => {
     let alive = true;
@@ -85,13 +105,14 @@ export function ContainerDetail({ container, initialTab, onClose, onAction, noti
                 ['overview', 'Visão geral'],
                 ['terminal', 'Terminal'],
                 ['exec', 'Executar comando'],
+                ['routines', 'Rotinas'],
                 ['logs', 'Logs'],
               ] as [Tab, string][]
             ).map(([key, label]) => (
               <button
                 key={key}
                 className={`tab ${tab === key ? 'active' : ''}`}
-                onClick={() => setTab(key)}
+                onClick={() => openTab(key)}
                 data-testid={`tab-${key}`}
               >
                 {label}
@@ -101,15 +122,53 @@ export function ContainerDetail({ container, initialTab, onClose, onAction, noti
         </div>
 
         <div className="drawer-body">
-          {tab === 'overview' && <Overview container={container} details={details} />}
-          {tab === 'terminal' && (
-            <TerminalPane container={container} notify={notify} />
-          )}
-          {tab === 'exec' && <ExecPane container={container} notify={notify} />}
-          {tab === 'logs' && <LogsPane containerId={container.id} />}
+          <PaneHolder active={tab === 'overview'} mounted={visited.has('overview')}>
+            <Overview container={container} details={details} />
+          </PaneHolder>
+          <PaneHolder active={tab === 'terminal'} mounted={visited.has('terminal')}>
+            <TerminalPane
+              container={container}
+              notify={notify}
+              pendingCommand={pendingCommand}
+              onCommandSent={commandSent}
+            />
+          </PaneHolder>
+          <PaneHolder active={tab === 'exec'} mounted={visited.has('exec')}>
+            <ExecPane container={container} notify={notify} />
+          </PaneHolder>
+          <PaneHolder active={tab === 'routines'} mounted={visited.has('routines')}>
+            <RoutinesPane container={container} onRunInTerminal={runInTerminal} />
+          </PaneHolder>
+          <PaneHolder active={tab === 'logs'} mounted={visited.has('logs')}>
+            <LogsPane containerId={container.id} />
+          </PaneHolder>
         </div>
       </div>
     </>
+  );
+}
+
+function PaneHolder({
+  active,
+  mounted,
+  children,
+}: {
+  active: boolean;
+  mounted: boolean;
+  children: ReactNode;
+}) {
+  if (!mounted) return null;
+  return (
+    <div
+      style={{
+        display: active ? 'flex' : 'none',
+        flexDirection: 'column',
+        flex: 1,
+        minHeight: 0,
+      }}
+    >
+      {children}
+    </div>
   );
 }
 

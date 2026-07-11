@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Play, Loader2 } from 'lucide-react';
+import { Play, Loader2, Eraser } from 'lucide-react';
 import type { ContainerSummary } from '../global';
 
 interface Entry {
@@ -69,6 +69,15 @@ export function ExecPane({ container, notify }: Props) {
         >
           {busy ? <Loader2 size={15} className="spin" /> : <Play size={15} />}
           Executar
+        </button>
+        <button
+          className="btn"
+          onClick={() => setEntries([])}
+          disabled={entries.length === 0}
+          title="Limpar a saída"
+          data-testid="exec-clear"
+        >
+          <Eraser size={15} /> Limpar
         </button>
       </div>
       <pre className="exec-output" ref={outRef} data-testid="exec-output">

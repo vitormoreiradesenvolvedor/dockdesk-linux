@@ -1,8 +1,9 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const dockerService = require('./docker-service.cjs');
 const composeService = require('./compose-service.cjs');
 
@@ -12,6 +13,11 @@ if (process.env.DOCKDESK_USERDATA) {
 }
 
 let mainWindow = null;
+let tray = null;
+let isQuitting = false;
+
+const ICON_PATH = path.join(__dirname, '..', 'build', 'icon.png');
+const TRAY_ICON_PATH = path.join(__dirname, '..', 'build', 'tray.png');
 
 // ---------- Configuração persistente ----------
 
@@ -21,9 +27,10 @@ function configPath() {
 
 function loadConfig() {
   try {
-    return JSON.parse(fs.readFileSync(configPath(), 'utf8'));
+    const config = JSON.parse(fs.readFileSync(configPath(), 'utf8'));
+    return { composeFolders: [], routines: {}, ...config };
   } catch (_) {
-    return { composeFolders: [] };
+    return { composeFolders: [], routines: {}, autostart: false, startHidden: false };
   }
 }
 
@@ -32,9 +39,114 @@ function saveConfig(config) {
   fs.writeFileSync(configPath(), JSON.stringify(config, null, 2));
 }
 
+// ---------- Autostart (XDG) ----------
+
+function autostartFilePath() {
+  return path.join(os.homedir(), '.config', 'autostart', 'dockdesk.desktop');
+}
+
+function autostartExecLine(startHidden) {
+  // empacotado como AppImage o próprio arquivo é o executável;
+  // em desenvolvimento usa o binário do electron + caminho do app
+  const base = process.env.APPIMAGE
+    ? `"${process.env.APPIMAGE}"`
+    : `"${process.execPath}" "${app.getAppPath()}"`;
+  return startHidden ? `${base} --hidden` : base;
+}
+
+function applyAutostart() {
+  const config = loadConfig();
+  const file = autostartFilePath();
+  if (config.autostart) {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(
+      file,
+      [
+        '[Desktop Entry]',
+        'Type=Application',
+        'Name=DockDesk',
+        'Comment=Gerenciador gráfico de containers Docker',
+        `Exec=${autostartExecLine(config.startHidden)}`,
+        'X-GNOME-Autostart-enabled=true',
+        'Terminal=false',
+        '',
+      ].join('\n')
+    );
+  } else {
+    try {
+      fs.unlinkSync(file);
+    } catch (_) {}
+  }
+}
+
+// ---------- Bandeja (tray) ----------
+
+function showWindow() {
+  if (!mainWindow) return;
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function rebuildTrayMenu() {
+  if (!tray) return;
+  const config = loadConfig();
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: 'Mostrar DockDesk', click: showWindow },
+      { type: 'separator' },
+      {
+        label: 'Iniciar com o sistema',
+        type: 'checkbox',
+        checked: !!config.autostart,
+        click: (item) => {
+          const c = loadConfig();
+          c.autostart = item.checked;
+          saveConfig(c);
+          applyAutostart();
+          rebuildTrayMenu();
+        },
+      },
+      {
+        label: 'Iniciar oculto (só na bandeja)',
+        type: 'checkbox',
+        checked: !!config.startHidden,
+        click: (item) => {
+          const c = loadConfig();
+          c.startHidden = item.checked;
+          saveConfig(c);
+          applyAutostart();
+          rebuildTrayMenu();
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Encerrar DockDesk',
+        click: () => {
+          isQuitting = true;
+          app.quit();
+        },
+      },
+    ])
+  );
+}
+
+function createTray() {
+  try {
+    const image = nativeImage.createFromPath(TRAY_ICON_PATH);
+    tray = new Tray(image);
+    tray.setToolTip('DockDesk');
+    tray.on('click', showWindow);
+    rebuildTrayMenu();
+  } catch (err) {
+    // sem suporte a tray no ambiente (ex.: CI) — o app segue normal
+    tray = null;
+  }
+}
+
 // ---------- Janela ----------
 
 function createWindow() {
+  const startHidden = process.argv.includes('--hidden') || loadConfig().startHidden;
   mainWindow = new BrowserWindow({
     width: 1360,
     height: 860,
@@ -42,7 +154,8 @@ function createWindow() {
     minHeight: 640,
     backgroundColor: '#0d1117',
     title: 'DockDesk',
-    icon: path.join(__dirname, '..', 'build', 'icon.png'),
+    icon: nativeImage.createFromPath(ICON_PATH),
+    show: !startHidden,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -50,6 +163,13 @@ function createWindow() {
     },
   });
   mainWindow.removeMenu();
+  // fechar a janela esconde para a bandeja; sair de verdade fica no menu da tray
+  mainWindow.on('close', (e) => {
+    if (!isQuitting && tray) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
+  });
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
     mainWindow.webContents.openDevTools({ mode: 'detach' });
@@ -111,6 +231,23 @@ ipcMain.on('logs:stop', (_e, id) => dockerService.stopLogs(id));
 
 ipcMain.handle('images:list', () => dockerService.listImages());
 ipcMain.handle('images:remove', (_e, id) => dockerService.removeImage(id));
+
+// ---------- IPC: volumes e redes ----------
+
+ipcMain.handle('volumes:list', () => dockerService.listVolumes());
+ipcMain.handle('volumes:remove', (_e, name) => dockerService.removeVolume(name));
+ipcMain.handle('networks:list', () => dockerService.listNetworks());
+ipcMain.handle('networks:remove', (_e, id) => dockerService.removeNetwork(id));
+
+// ---------- IPC: rotinas ----------
+
+ipcMain.handle('routines:list', (_e, key) => loadConfig().routines[key] || []);
+ipcMain.handle('routines:save', (_e, key, list) => {
+  const config = loadConfig();
+  config.routines[key] = list;
+  saveConfig(config);
+  return list;
+});
 
 // ---------- IPC: compose ----------
 
@@ -175,7 +312,14 @@ ipcMain.handle('compose:run', async (event, file, action) => {
 
 // ---------- Ciclo de vida ----------
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createTray();
+  createWindow();
+});
+
+app.on('before-quit', () => {
+  isQuitting = true;
+});
 
 app.on('window-all-closed', () => {
   app.quit();

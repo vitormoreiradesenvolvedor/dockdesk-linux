@@ -41,6 +41,18 @@ contextBridge.exposeInMainWorld('dockdesk', {
     list: () => ipcRenderer.invoke('images:list'),
     remove: (id) => ipcRenderer.invoke('images:remove', id),
   },
+  volumes: {
+    list: () => ipcRenderer.invoke('volumes:list'),
+    remove: (name) => ipcRenderer.invoke('volumes:remove', name),
+  },
+  networks: {
+    list: () => ipcRenderer.invoke('networks:list'),
+    remove: (id) => ipcRenderer.invoke('networks:remove', id),
+  },
+  routines: {
+    list: (key) => ipcRenderer.invoke('routines:list', key),
+    save: (key, list) => ipcRenderer.invoke('routines:save', key, list),
+  },
   compose: {
     folders: () => ipcRenderer.invoke('compose:folders'),
     addFolder: () => ipcRenderer.invoke('compose:addFolder'),

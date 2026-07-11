@@ -1,6 +1,6 @@
-import { Anchor, Boxes, Layers, HardDrive } from 'lucide-react';
+import { Anchor, Boxes, Layers, HardDrive, Database, Network } from 'lucide-react';
 
-export type ViewName = 'containers' | 'compose' | 'images';
+export type ViewName = 'containers' | 'compose' | 'images' | 'volumes' | 'networks';
 
 interface Props {
   view: ViewName;
@@ -50,6 +50,24 @@ export function Sidebar({ view, onNavigate, engine, runningCount, totalCount }: 
       >
         <HardDrive size={17} />
         Imagens
+      </button>
+
+      <button
+        className={`nav-item ${view === 'volumes' ? 'active' : ''}`}
+        onClick={() => onNavigate('volumes')}
+        data-testid="nav-volumes"
+      >
+        <Database size={17} />
+        Volumes
+      </button>
+
+      <button
+        className={`nav-item ${view === 'networks' ? 'active' : ''}`}
+        onClick={() => onNavigate('networks')}
+        data-testid="nav-networks"
+      >
+        <Network size={17} />
+        Redes
       </button>
 
       <div className="sidebar-footer" data-testid="engine-status">

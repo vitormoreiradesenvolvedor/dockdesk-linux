@@ -38,7 +38,9 @@
     "productName": "DockDesk",
     "files": [
       "electron/**/*",
-      "dist/**/*"
+      "dist/**/*",
+      "build/icon.png",
+      "build/tray.png"
     ],
     "asarUnpack": [
       "node_modules/ssh2/**"

@@ -336,6 +336,73 @@ function stopLogs(id) {
   }
 }
 
+// ---------- Volumes ----------
+
+async function listVolumes() {
+  const [data, containers] = await Promise.all([
+    docker.listVolumes(),
+    docker.listContainers({ all: true }),
+  ]);
+  const usage = {};
+  for (const c of containers) {
+    const cname = (c.Names && c.Names[0] ? c.Names[0] : '').replace(/^\//, '');
+    for (const m of c.Mounts || []) {
+      if (m.Type === 'volume' && m.Name) {
+        (usage[m.Name] = usage[m.Name] || []).push(cname);
+      }
+    }
+  }
+  return (data.Volumes || [])
+    .map((v) => ({
+      name: v.Name,
+      driver: v.Driver,
+      mountpoint: v.Mountpoint,
+      created: v.CreatedAt || null,
+      project: (v.Labels && v.Labels['com.docker.compose.project']) || null,
+      usedBy: usage[v.Name] || [],
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function removeVolume(name) {
+  await docker.getVolume(name).remove();
+  return { ok: true };
+}
+
+// ---------- Redes ----------
+
+const BUILTIN_NETWORKS = new Set(['bridge', 'host', 'none']);
+
+async function listNetworks() {
+  const nets = await docker.listNetworks();
+  const detailed = await Promise.all(
+    nets.map(async (n) => {
+      let attached = [];
+      try {
+        const info = await docker.getNetwork(n.Id).inspect();
+        attached = Object.values(info.Containers || {}).map((c) => c.Name);
+      } catch (_) {
+        /* rede pode ter sumido entre o list e o inspect */
+      }
+      return {
+        id: n.Id,
+        name: n.Name,
+        driver: n.Driver,
+        scope: n.Scope,
+        builtin: BUILTIN_NETWORKS.has(n.Name),
+        project: (n.Labels && n.Labels['com.docker.compose.project']) || null,
+        containers: attached,
+      };
+    })
+  );
+  return detailed.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function removeNetwork(id) {
+  await docker.getNetwork(id).remove();
+  return { ok: true };
+}
+
 // ---------- Imagens ----------
 
 async function listImages() {
@@ -370,4 +437,8 @@ module.exports = {
   stopLogs,
   listImages,
   removeImage,
+  listVolumes,
+  removeVolume,
+  listNetworks,
+  removeNetwork,
 };

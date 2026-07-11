@@ -35,10 +35,14 @@ export function setupFixtures() {
       '    image: alpine',
       '    init: true',
       '    command: sleep 3600',
+      '    volumes:',
+      '      - dados:/dados',
       '  worker:',
       '    image: alpine',
       '    init: true',
       '    command: sleep 3600',
+      'volumes:',
+      '  dados: {}',
       '',
     ].join('\n')
   );
@@ -50,7 +54,7 @@ export function teardownFixtures() {
   } catch (_) {}
   try {
     sh(
-      `docker compose -f ${path.join(composeProjectDir, 'docker-compose.yml')} down --remove-orphans -t 2`
+      `docker compose -f ${path.join(composeProjectDir, 'docker-compose.yml')} down --remove-orphans -v -t 2`
     );
   } catch (_) {}
   fs.rmSync(tmpRoot, { recursive: true, force: true });

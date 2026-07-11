@@ -4,6 +4,8 @@ import { Sidebar, type ViewName } from './components/Sidebar';
 import { ContainersView } from './components/ContainersView';
 import { ComposeView } from './components/ComposeView';
 import { ImagesView } from './components/ImagesView';
+import { VolumesView } from './components/VolumesView';
+import { NetworksView } from './components/NetworksView';
 
 interface Toast {
   id: number;
@@ -96,6 +98,8 @@ export default function App() {
         )}
         {view === 'compose' && <ComposeView notify={notify} />}
         {view === 'images' && <ImagesView notify={notify} />}
+        {view === 'volumes' && <VolumesView notify={notify} />}
+        {view === 'networks' && <NetworksView notify={notify} />}
       </main>
       <div className="toast-stack">
         {toasts.map((t) => (

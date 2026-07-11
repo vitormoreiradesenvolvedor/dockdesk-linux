@@ -177,30 +177,39 @@ export function ComposeView({ notify }: Props) {
                       </button>
                     ) : (
                       <>
-                        <button
-                          className="btn success"
-                          onClick={() => runAction(p, 'up')}
-                          title="docker compose up -d"
-                          data-testid={`compose-up-${p.name}`}
-                        >
-                          <ArrowUpCircle size={15} /> Subir
-                        </button>
-                        <button
-                          className="btn"
-                          onClick={() => runAction(p, 'restart')}
-                          title="docker compose restart"
-                          data-testid={`compose-restart-${p.name}`}
-                        >
-                          <RotateCw size={15} />
-                        </button>
-                        <button
-                          className="btn danger"
-                          onClick={() => runAction(p, 'down')}
-                          title="docker compose down"
-                          data-testid={`compose-down-${p.name}`}
-                        >
-                          <ArrowDownCircle size={15} /> Derrubar
-                        </button>
+                        {/* Subir só aparece se há serviço parado; Reiniciar e
+                            Derrubar só fazem sentido com algo rodando */}
+                        {(status?.running ?? 0) <
+                          Math.max(p.services.length, status?.total ?? 0, 1) && (
+                          <button
+                            className="btn success"
+                            onClick={() => runAction(p, 'up')}
+                            title="docker compose up -d"
+                            data-testid={`compose-up-${p.name}`}
+                          >
+                            <ArrowUpCircle size={15} /> Subir
+                          </button>
+                        )}
+                        {(status?.running ?? 0) > 0 && (
+                          <>
+                            <button
+                              className="btn"
+                              onClick={() => runAction(p, 'restart')}
+                              title="docker compose restart"
+                              data-testid={`compose-restart-${p.name}`}
+                            >
+                              <RotateCw size={15} /> Reiniciar
+                            </button>
+                            <button
+                              className="btn danger"
+                              onClick={() => runAction(p, 'down')}
+                              title="docker compose down"
+                              data-testid={`compose-down-${p.name}`}
+                            >
+                              <ArrowDownCircle size={15} /> Derrubar
+                            </button>
+                          </>
+                        )}
                       </>
                     )}
                   </div>

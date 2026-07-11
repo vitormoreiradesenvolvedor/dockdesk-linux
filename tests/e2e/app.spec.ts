@@ -99,6 +99,62 @@ test('mostra os logs do container', async () => {
   });
 });
 
+test('mantém terminal e saída do exec ao alternar abas, com botão de limpar', async () => {
+  // volta para o terminal: a sessão aberta antes deve continuar viva
+  await page.getByTestId('tab-terminal').click();
+  await expect(
+    page.getByTestId('terminal-session').locator('.xterm-rows')
+  ).toContainText('terminal-interativo-42');
+
+  // volta para o exec: a saída anterior deve continuar lá
+  await page.getByTestId('tab-exec').click();
+  await expect(page.getByTestId('exec-output')).toContainText('saida-do-exec-ok');
+
+  // limpar zera a saída
+  await page.getByTestId('exec-clear').click();
+  await expect(page.getByTestId('exec-output')).not.toContainText('saida-do-exec-ok');
+});
+
+test('cria e executa uma rotina simples no terminal', async () => {
+  await page.getByTestId('tab-routines').click();
+  await expect(page.getByTestId('routines-pane')).toBeVisible();
+
+  await page.getByTestId('routine-new').click();
+  await page.getByTestId('routine-label-input').fill('Diagnóstico');
+  await page.getByTestId('routine-command-input').fill('echo rotina-simples-$((700+77))');
+  await page.getByTestId('routine-save').click();
+
+  await page.getByTestId('routine-run-Diagnóstico').click();
+  // executar leva direto para a aba do terminal, na sessão já aberta
+  await expect(
+    page.getByTestId('terminal-session').locator('.xterm-rows')
+  ).toContainText('rotina-simples-777', { timeout: 20_000 });
+});
+
+test('executa rotina parcial pedindo complemento em modal', async () => {
+  await page.getByTestId('tab-routines').click();
+
+  await page.getByTestId('routine-new').click();
+  await page.getByTestId('routine-label-input').fill('Preparar');
+  await page.getByTestId('routine-command-input').fill('echo inicio');
+  await page.getByTestId('routine-partial-check').check();
+  await page.getByTestId('routine-save').click();
+
+  await page.getByTestId('routine-run-Preparar').click();
+  await expect(page.getByTestId('complement-modal')).toBeVisible();
+  await page.getByTestId('complement-input').fill('&& echo fim-parcial-$((800+88))');
+  await page.getByTestId('complement-run').click();
+
+  await expect(
+    page.getByTestId('terminal-session').locator('.xterm-rows')
+  ).toContainText('fim-parcial-888', { timeout: 20_000 });
+
+  // rotinas ficam persistidas (recarrega a lista ao reabrir a aba)
+  await page.getByTestId('tab-routines').click();
+  await expect(page.getByTestId('routine-Diagnóstico')).toBeVisible();
+  await expect(page.getByTestId('routine-Preparar')).toContainText('complementável');
+});
+
 test('para e liga o container pela interface', async () => {
   await page.getByTestId('drawer-stop').click();
   await expect(page.getByTestId(`badge-${FIXTURE_CONTAINER}`)).toHaveText('Parado', {
@@ -172,17 +228,63 @@ test('sobe o projeto compose com um clique (up -d)', async () => {
     '2/2 rodando',
     { timeout: 30_000 }
   );
+
+  // com tudo rodando o botão Subir some e aparecem Reiniciar/Derrubar
+  await expect(page.getByTestId(`compose-up-${COMPOSE_PROJECT_DIR_NAME}`)).toHaveCount(0);
+  await expect(page.getByTestId(`compose-down-${COMPOSE_PROJECT_DIR_NAME}`)).toBeVisible();
+  await expect(
+    page.getByTestId(`compose-restart-${COMPOSE_PROJECT_DIR_NAME}`)
+  ).toBeVisible();
 });
 
-test('containers do compose aparecem na lista com a tag do projeto', async () => {
+test('mostra volumes agrupados pelo projeto compose', async () => {
+  await page.getByTestId('nav-volumes').click();
+  await expect(page.getByTestId('volumes-view')).toBeVisible();
+  const group = page.getByTestId(`volume-group-${COMPOSE_PROJECT_DIR_NAME}`);
+  await expect(group).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByTestId(`volume-${COMPOSE_PROJECT_DIR_NAME}_dados`)
+  ).toContainText('Em uso');
+});
+
+test('mostra redes agrupadas pelo projeto compose', async () => {
+  await page.getByTestId('nav-networks').click();
+  await expect(page.getByTestId('networks-view')).toBeVisible();
+  const group = page.getByTestId(`network-group-${COMPOSE_PROJECT_DIR_NAME}`);
+  await expect(group).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByTestId(`network-${COMPOSE_PROJECT_DIR_NAME}_default`)
+  ).toContainText('conectado');
+  // redes padrão do Docker aparecem no grupo de avulsas, sem botão de remover
+  await expect(page.getByTestId('network-group-avulsas')).toBeVisible();
+  await expect(page.getByTestId('network-bridge')).toContainText('padrão do Docker');
+});
+
+test('containers do compose aparecem agrupados em sanfonado do projeto', async () => {
   await page.getByTestId('nav-containers').click();
-  const composeContainer = page.locator(
+
+  // grupo sanfonado do projeto, com contagem
+  const group = page.getByTestId(`group-${COMPOSE_PROJECT_DIR_NAME}`);
+  await expect(group).toBeVisible({ timeout: 20_000 });
+  await expect(group).toContainText('2/2 rodando');
+
+  // containers dentro do grupo, com a tag do serviço
+  const composeContainer = group.locator(
     `[data-testid^="container-${COMPOSE_PROJECT_DIR_NAME}-web"]`
   );
-  await expect(composeContainer).toBeVisible({ timeout: 20_000 });
-  await expect(composeContainer.locator('.compose-tag')).toContainText(
-    COMPOSE_PROJECT_DIR_NAME
-  );
+  await expect(composeContainer).toBeVisible();
+  await expect(composeContainer.locator('.compose-tag')).toContainText('web');
+
+  // o container avulso fica na seção de avulsos
+  await expect(
+    page.getByTestId('group-avulsos').getByTestId(`container-${FIXTURE_CONTAINER}`)
+  ).toBeVisible();
+
+  // recolher o sanfonado esconde os containers do projeto
+  await page.getByTestId(`group-toggle-${COMPOSE_PROJECT_DIR_NAME}`).click();
+  await expect(composeContainer).toHaveCount(0);
+  await page.getByTestId(`group-toggle-${COMPOSE_PROJECT_DIR_NAME}`).click();
+  await expect(composeContainer).toBeVisible();
 });
 
 test('derruba o projeto compose (down)', async () => {
@@ -196,6 +298,13 @@ test('derruba o projeto compose (down)', async () => {
     `docker compose -f ${composeRoot}/${COMPOSE_PROJECT_DIR_NAME}/docker-compose.yml ps --services --status running || true`
   );
   expect(out.trim()).toBe('');
+
+  // com tudo derrubado, volta o botão Subir e somem Reiniciar/Derrubar
+  await expect(page.getByTestId(`compose-up-${COMPOSE_PROJECT_DIR_NAME}`)).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(page.getByTestId(`compose-down-${COMPOSE_PROJECT_DIR_NAME}`)).toHaveCount(0);
+  await expect(page.getByTestId(`compose-restart-${COMPOSE_PROJECT_DIR_NAME}`)).toHaveCount(0);
 });
 
 test('lista imagens locais', async () => {

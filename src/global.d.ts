@@ -72,6 +72,32 @@ export interface ExecResult {
   exitCode: number | null;
 }
 
+export interface VolumeSummary {
+  name: string;
+  driver: string;
+  mountpoint: string;
+  created: string | null;
+  project: string | null;
+  usedBy: string[];
+}
+
+export interface NetworkSummary {
+  id: string;
+  name: string;
+  driver: string;
+  scope: string;
+  builtin: boolean;
+  project: string | null;
+  containers: string[];
+}
+
+export interface Routine {
+  id: string;
+  label: string;
+  command: string;
+  partial: boolean;
+}
+
 export interface DockDeskApi {
   engine: {
     ping: () => Promise<{ ok: boolean; version?: string; apiVersion?: string; error?: string }>;
@@ -104,6 +130,18 @@ export interface DockDeskApi {
   images: {
     list: () => Promise<ImageSummary[]>;
     remove: (id: string) => Promise<{ ok: boolean }>;
+  };
+  volumes: {
+    list: () => Promise<VolumeSummary[]>;
+    remove: (name: string) => Promise<{ ok: boolean }>;
+  };
+  networks: {
+    list: () => Promise<NetworkSummary[]>;
+    remove: (id: string) => Promise<{ ok: boolean }>;
+  };
+  routines: {
+    list: (key: string) => Promise<Routine[]>;
+    save: (key: string, list: Routine[]) => Promise<Routine[]>;
   };
   compose: {
     folders: () => Promise<string[]>;

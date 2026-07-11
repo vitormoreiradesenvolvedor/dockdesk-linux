@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { TerminalSquare, Loader2, Power } from 'lucide-react';
+import { TerminalSquare, Loader2, Power, Eraser } from 'lucide-react';
 import type { ContainerSummary } from '../global';
 
 interface Props {
   container: ContainerSummary;
   notify: (text: string, kind?: 'error' | 'info') => void;
+  pendingCommand?: string | null;
+  onCommandSent?: () => void;
 }
 
-export function TerminalPane({ container, notify }: Props) {
+export function TerminalPane({ container, notify, pendingCommand, onCommandSent }: Props) {
   const [shells, setShells] = useState<string[] | null>(null);
   const [shell, setShell] = useState<string | null>(null);
   const [sessionShell, setSessionShell] = useState<string | null>(null);
@@ -33,6 +35,13 @@ export function TerminalPane({ container, notify }: Props) {
     };
   }, [container.id, running]);
 
+  // uma rotina pediu para rodar: abre a sessão automaticamente se necessário
+  useEffect(() => {
+    if (pendingCommand && running && !sessionShell && shell) {
+      setSessionShell(shell);
+    }
+  }, [pendingCommand, running, sessionShell, shell]);
+
   if (!running) {
     return (
       <div className="centered-note" data-testid="terminal-pane">
@@ -51,6 +60,8 @@ export function TerminalPane({ container, notify }: Props) {
         shell={sessionShell}
         onEnd={endSession}
         notify={notify}
+        pendingCommand={pendingCommand ?? null}
+        onCommandSent={onCommandSent}
       />
     );
   }
@@ -112,14 +123,22 @@ function TerminalSession({
   shell,
   onEnd,
   notify,
+  pendingCommand,
+  onCommandSent,
 }: {
   containerId: string;
   shell: string;
   onEnd: () => void;
   notify: (text: string, kind?: 'error' | 'info') => void;
+  pendingCommand: string | null;
+  onCommandSent?: () => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const xtermRef = useRef<XTerm | null>(null);
+  const termIdRef = useRef<string | null>(null);
   const [exited, setExited] = useState(false);
+  // pronto = conectado + tempo para o prompt/handshake do shell assentar
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -141,12 +160,15 @@ function TerminalSession({
     xterm.open(el);
     fit.fit();
     xterm.focus();
+    xtermRef.current = xterm;
 
     // o renderer gera o termId e se inscreve ANTES de abrir o exec: nenhum
     // byte do stream (prompt, consultas de cursor do shell) pode se perder
     const termId = `term-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    termIdRef.current = termId;
     let disposed = false;
     let connected = false;
+    let readyTimer: ReturnType<typeof setTimeout> | null = null;
     const cleanups: (() => void)[] = [];
 
     cleanups.push(
@@ -167,6 +189,7 @@ function TerminalSession({
         }
         connected = true;
         window.dockdesk.term.resize(termId, xterm.cols, xterm.rows);
+        readyTimer = setTimeout(() => setReady(true), 500);
       })
       .catch((err) => {
         notify(`Não foi possível abrir o terminal: ${err.message}`);
@@ -186,13 +209,24 @@ function TerminalSession({
     return () => {
       disposed = true;
       if (fitTimer) clearTimeout(fitTimer);
+      if (readyTimer) clearTimeout(readyTimer);
       observer.disconnect();
       window.removeEventListener('resize', scheduleFit);
       cleanups.forEach((c) => c());
       if (connected) window.dockdesk.term.close(termId);
       xterm.dispose();
+      xtermRef.current = null;
     };
   }, [containerId, shell, notify, onEnd]);
+
+  // rotina pendente: envia o comando quando a sessão estiver pronta
+  useEffect(() => {
+    if (ready && pendingCommand && termIdRef.current && !exited) {
+      window.dockdesk.term.write(termIdRef.current, pendingCommand + '\r');
+      xtermRef.current?.focus();
+      onCommandSent?.();
+    }
+  }, [ready, pendingCommand, exited, onCommandSent]);
 
   return (
     <div
@@ -212,6 +246,15 @@ function TerminalSession({
           <>
             Conectado com <code>{shell}</code> — digite <code>exit</code> para encerrar a
             sessão.
+            <button
+              className="btn sm"
+              style={{ marginLeft: 10 }}
+              onClick={() => xtermRef.current?.clear()}
+              data-testid="terminal-clear"
+              title="Limpar a tela do terminal"
+            >
+              <Eraser size={13} /> Limpar
+            </button>
           </>
         )}
       </p>
