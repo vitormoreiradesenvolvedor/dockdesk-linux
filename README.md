@@ -2,7 +2,7 @@
 
 # DockDesk
 
-**Docker sem decorar comandos — uma interface gráfica completa para Linux.**
+**Docker sem decorar comandos: uma interface gráfica completa para Linux.**
 
 <br clear="left"/>
 
@@ -15,26 +15,26 @@
 Todo time tem aquele projeto que "é só rodar o docker compose"… e também tem quem trave nessa etapa.
 Desenvolvedores front-end, QAs, designers técnicos, gente chegando agora no time: pessoas que **precisam** de containers no dia a dia, mas não querem (nem deveriam precisar) memorizar `docker exec -it`, flags de log ou a ordem certa de subir os serviços.
 
-O DockDesk existe para esse público: **quem desenvolve em projetos que usam Docker, sem ser especialista em Docker**. Tudo que o dia a dia exige está a um clique, com nomes claros, em seis idiomas — e sem esconder o que acontece por baixo (os comandos equivalentes aparecem na interface).
+O DockDesk existe para esse público: **quem desenvolve em projetos que usam Docker, sem ser especialista em Docker**. Tudo que o dia a dia exige está a um clique, com nomes claros, em seis idiomas, e sem esconder o que acontece por baixo (os comandos equivalentes aparecem na interface).
 
 ## O que ele faz
 
 ### Containers
 - Lista com status ao vivo, uso de **CPU e memória**, portas mapeadas e busca;
 - **Ligar, parar, reiniciar e remover** com um clique (remoção com confirmação);
-- Containers **agrupados por projeto Compose** em sanfonados — inclusive projetos que subiram fora do DockDesk — com estado aberto/recolhido lembrado e **reordenação por arrastar**;
+- Containers **agrupados por projeto Compose** em sanfonados (inclusive projetos que subiram fora do DockDesk), com estado aberto/recolhido lembrado e **reordenação por arrastar**;
 - Painel de detalhes: imagem, IP interno, redes, portas, volumes/montagens e variáveis de ambiente.
 
 ### Terminal e comandos
 - **Terminal interativo real** (equivalente a `docker exec -it`), com **detecção automática dos shells** disponíveis na imagem (bash, zsh, fish, ash, sh…) para você escolher;
-- **Executar comando** avulso com saída, stderr e código de saída — sem abrir terminal;
+- **Executar comando** avulso com saída, stderr e código de saída, sem abrir terminal;
 - **Logs ao vivo** com auto-scroll inteligente;
 - As abas preservam o que está rodando ao alternar entre elas, com botões de limpar.
 
 ### Rotinas (atalhos por container)
 - Crie botões como `htop`, `npm run dev` ou `composer install`;
 - **Rotinas parciais**: o comando fixo (ex.: `cd /home/projeto`) pede o complemento na hora de executar (ex.: `&& npm install`);
-- Cada rotina roda em um **terminal próprio atrelado à sua linha**, que fica visível enquanto o processo vive — perfeito para `npm run dev` — com **indicador de execução** e botão de parar;
+- Cada rotina roda em um **terminal próprio atrelado à sua linha**, que fica visível enquanto o processo vive (perfeito para `npm run dev`), com **indicador de execução**, minimizar e botão de parar;
 - Salvas por nome de container: sobrevivem a recriações.
 
 ### Projetos Compose
@@ -49,12 +49,12 @@ O DockDesk existe para esse público: **quem desenvolve em projetos que usam Doc
 
 ### Experiência
 - **Tema claro/escuro** com um clique;
-- **6 idiomas**: Português (BR), English, 中文, हिन्दी, Español e Français — interface e bandeja;
+- **6 idiomas**: Português (BR), English, 中文, हिन्दी, Español e Français, na interface e na bandeja;
 - **Bandeja do sistema**: fechar esconde para a tray; opções de iniciar com o sistema e iniciar oculto;
 - **Instância única**: abrir de novo só foca a janela existente;
 - A ordem dos grupos, tema, idioma e estado dos sanfonados persistem entre sessões.
 
-![DockDesk — tela de containers](docs/screenshot-containers.png)
+![DockDesk, tela de containers](docs/screenshot-containers.png)
 
 ## Instalação
 

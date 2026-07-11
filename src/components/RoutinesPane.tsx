@@ -1,5 +1,15 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { Play, Plus, Pencil, Trash2, ListChecks, Loader2, Square, X } from 'lucide-react';
+import {
+  Play,
+  Plus,
+  Pencil,
+  Trash2,
+  ListChecks,
+  Loader2,
+  Square,
+  X,
+  ChevronDown,
+} from 'lucide-react';
 import type { ContainerSummary, Routine } from '../global';
 import { useI18n } from '../i18n';
 import { InlineTerminal } from './InlineTerminal';
@@ -7,6 +17,7 @@ import { InlineTerminal } from './InlineTerminal';
 interface Session {
   command: string;
   exited: boolean;
+  minimized: boolean;
 }
 
 interface Props {
@@ -36,7 +47,16 @@ export function RoutinesPane({ container, notify }: Props) {
   }
 
   function start(routine: Routine, command: string) {
-    setSessions((s) => ({ ...s, [routine.id]: { command, exited: false } }));
+    setSessions((s) => ({
+      ...s,
+      [routine.id]: { command, exited: false, minimized: false },
+    }));
+  }
+
+  function toggleMinimized(id: string) {
+    setSessions((s) =>
+      s[id] ? { ...s, [id]: { ...s[id], minimized: !s[id].minimized } } : s
+    );
   }
 
   function run(routine: Routine) {
@@ -131,6 +151,19 @@ export function RoutinesPane({ container, notify }: Props) {
                       {!session && r.partial ? ' …' : ''}
                     </code>
                   </div>
+                  {session && (
+                    <button
+                      className="btn icon-only sm"
+                      title={session.minimized ? t('routine_expand') : t('routine_minimize')}
+                      onClick={() => toggleMinimized(r.id)}
+                      data-testid={`routine-toggle-term-${r.label}`}
+                    >
+                      <ChevronDown
+                        size={14}
+                        className={`chevron ${session.minimized ? 'closed' : ''}`}
+                      />
+                    </button>
+                  )}
                   {isRunning && (
                     <button
                       className="btn icon-only sm danger"
@@ -171,7 +204,13 @@ export function RoutinesPane({ container, notify }: Props) {
                 </div>
 
                 {session && (
-                  <div className="routine-terminal" data-testid={`routine-terminal-${r.label}`}>
+                  // minimizado esconde via CSS: o InlineTerminal continua
+                  // montado e a sessão (ex.: npm run dev) segue viva
+                  <div
+                    className="routine-terminal"
+                    data-testid={`routine-terminal-${r.label}`}
+                    style={{ display: session.minimized ? 'none' : 'block' }}
+                  >
                     <InlineTerminal
                       containerId={container.id}
                       spec={{ command: session.command }}

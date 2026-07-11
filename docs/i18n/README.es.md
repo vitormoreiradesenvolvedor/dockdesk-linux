@@ -2,7 +2,7 @@
 
 # DockDesk
 
-**Docker sin memorizar comandos — una interfaz gráfica completa para Linux.**
+**Docker sin memorizar comandos: una interfaz gráfica completa para Linux.**
 
 <br clear="left"/>
 
@@ -15,26 +15,26 @@
 Todo equipo tiene ese proyecto que "solo hay que levantar con docker compose"… y alguien que se traba justo ahí.
 Desarrolladores front-end, QAs, diseñadores técnicos, gente recién llegada al equipo: personas que **necesitan** containers a diario pero no quieren (ni deberían tener que) memorizar `docker exec -it`, flags de logs o el orden correcto para levantar los servicios.
 
-DockDesk existe para ese público: **quien desarrolla en proyectos que usan Docker sin ser especialista en Docker**. Todo lo que exige el día a día está a un clic, con nombres claros, en seis idiomas — y sin esconder lo que pasa por debajo (los comandos equivalentes se muestran en la interfaz).
+DockDesk existe para ese público: **quien desarrolla en proyectos que usan Docker sin ser especialista en Docker**. Todo lo que exige el día a día está a un clic, con nombres claros, en seis idiomas, y sin esconder lo que pasa por debajo (los comandos equivalentes se muestran en la interfaz).
 
 ## Qué hace
 
 ### Contenedores
 - Lista con estado en vivo, uso de **CPU y memoria**, puertos mapeados y búsqueda;
 - **Iniciar, detener, reiniciar y eliminar** con un clic (la eliminación pide confirmación);
-- Contenedores **agrupados por proyecto Compose** en acordeones — incluso proyectos levantados fuera de DockDesk — con estado abierto/plegado recordado y **reordenamiento por arrastre**;
+- Contenedores **agrupados por proyecto Compose** en acordeones (incluso proyectos levantados fuera de DockDesk), con estado abierto/plegado recordado y **reordenamiento por arrastre**;
 - Panel de detalles: imagen, IP interna, redes, puertos, volúmenes/montajes y variables de entorno.
 
 ### Terminal y comandos
 - **Terminal interactiva real** (equivalente a `docker exec -it`), con **detección automática de los shells** disponibles en la imagen (bash, zsh, fish, ash, sh…);
-- **Ejecutar comando** suelto con salida, stderr y código de salida — sin abrir terminal;
+- **Ejecutar comando** suelto con salida, stderr y código de salida, sin abrir terminal;
 - **Logs en vivo** con auto-scroll inteligente;
 - Las pestañas preservan lo que está corriendo al alternar, con botones de limpiar.
 
 ### Rutinas (atajos por contenedor)
 - Crea botones como `htop`, `npm run dev` o `composer install`;
 - **Rutinas parciales**: el comando fijo (ej.: `cd /home/proyecto`) pide el complemento al ejecutar (ej.: `&& npm install`);
-- Cada rutina corre en **su propia terminal anclada a su fila**, visible mientras el proceso vive — perfecto para `npm run dev` — con **indicador de ejecución** y botón de detener;
+- Cada rutina corre en **su propia terminal anclada a su fila**, visible mientras el proceso vive (perfecto para `npm run dev`), con **indicador de ejecución**, minimizar y botón de detener;
 - Guardadas por nombre de contenedor: sobreviven a recreaciones.
 
 ### Proyectos Compose
@@ -49,12 +49,12 @@ DockDesk existe para ese público: **quien desarrolla en proyectos que usan Dock
 
 ### Experiencia
 - **Tema claro/oscuro** con un clic;
-- **6 idiomas**: Português (BR), English, 中文, हिन्दी, Español y Français — interfaz y bandeja;
+- **6 idiomas**: Português (BR), English, 中文, हिन्दी, Español y Français, en la interfaz y la bandeja;
 - **Bandeja del sistema**: cerrar esconde a la bandeja; opciones de iniciar con el sistema e iniciar oculto;
 - **Instancia única**: abrir de nuevo solo enfoca la ventana existente;
 - El orden de los grupos, tema, idioma y estado de los acordeones persisten entre sesiones.
 
-![DockDesk — vista de contenedores](../screenshot-containers.png)
+![DockDesk, vista de contenedores](../screenshot-containers.png)
 
 ## Instalación
 
