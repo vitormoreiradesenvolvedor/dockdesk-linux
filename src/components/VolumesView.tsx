@@ -12,6 +12,7 @@ import {
 import type { VolumeSummary } from '../global';
 import { useI18n } from '../i18n';
 import { useGroupOrder } from '../hooks/useGroupOrder';
+import { useCollapsedGroups } from '../hooks/useCollapsedGroups';
 
 const LOOSE = '__loose__';
 
@@ -22,7 +23,7 @@ interface Props {
 export function VolumesView({ notify }: Props) {
   const { t } = useI18n();
   const [volumes, setVolumes] = useState<VolumeSummary[] | null>(null);
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const collapsed = useCollapsedGroups('volumes');
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const order = useGroupOrder('volumes');
@@ -54,15 +55,6 @@ export function VolumesView({ notify }: Props) {
       setBusy(null);
       setConfirmRemove(null);
     }
-  }
-
-  function toggle(key: string) {
-    setCollapsed((s) => {
-      const next = new Set(s);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
   }
 
   const groups = new Map<string, VolumeSummary[]>();
@@ -100,17 +92,15 @@ export function VolumesView({ notify }: Props) {
         orderedKeys.map((key) => {
           const items = groups.get(key)!;
           const isLoose = key === LOOSE;
-          const isCollapsed = collapsed.has(key);
+          const isCollapsed = collapsed.isCollapsed(key);
           const testName = isLoose ? 'avulsos' : key;
           return (
             <section key={key} className="group-section" data-testid={`volume-group-${testName}`}>
               <div
-                className="group-header"
-                draggable
-                onDragStart={order.onDragStart(key)}
-                onDragOver={order.onDragOver}
-                onDrop={order.makeOnDrop(key, [...groups.keys()])}
-                onClick={() => toggle(key)}
+                className={`group-header ${order.overKey === key ? 'drag-over' : ''}`}
+                {...order.handleProps(key)}
+                {...order.targetProps(key, [...groups.keys()])}
+                onClick={() => collapsed.toggle(key)}
                 data-testid={`volume-group-toggle-${testName}`}
                 title={t('drag_reorder')}
               >

@@ -17,6 +17,8 @@ export function useGroupOrder(viewKey: string) {
     }
   });
   const dragKey = useRef<string | null>(null);
+  // grupo atualmente sob o item arrastado — para destacar o alvo do drop
+  const [overKey, setOverKey] = useState<string | null>(null);
 
   const sortKeys = useCallback(
     (present: string[]): string[] => {
@@ -42,36 +44,53 @@ export function useGroupOrder(viewKey: string) {
     [storageKey]
   );
 
-  const onDragStart = useCallback((key: string) => {
-    return (e: DragEvent) => {
-      dragKey.current = key;
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', key);
+  /** Props para o elemento que INICIA o arrasto (alça/cabeçalho). */
+  const handleProps = useCallback((key: string) => {
+    return {
+      draggable: true,
+      onDragStart: (e: DragEvent) => {
+        dragKey.current = key;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', key);
+      },
+      onDragEnd: () => {
+        dragKey.current = null;
+        setOverKey(null);
+      },
     };
   }, []);
 
-  const onDragOver = useCallback((e: DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  }, []);
-
-  const makeOnDrop = useCallback(
+  /** Props para o elemento que RECEBE o drop (o próprio grupo). */
+  const targetProps = useCallback(
     (targetKey: string, present: string[]) => {
-      return (e: DragEvent) => {
+      const allow = (e: DragEvent) => {
+        // preventDefault em dragenter E dragover é o que faz o cursor
+        // mostrar "pode soltar aqui" em vez do círculo de proibido
         e.preventDefault();
-        const source = dragKey.current ?? e.dataTransfer.getData('text/plain');
-        dragKey.current = null;
-        if (!source || source === targetKey) return;
-        const current = sortKeys(present);
-        const from = current.indexOf(source);
-        const to = current.indexOf(targetKey);
-        if (from < 0 || to < 0) return;
-        current.splice(to, 0, ...current.splice(from, 1));
-        persist(current);
+        e.dataTransfer.dropEffect = 'move';
+        if (dragKey.current && dragKey.current !== targetKey) setOverKey(targetKey);
+      };
+      return {
+        onDragEnter: allow,
+        onDragOver: allow,
+        onDragLeave: () => setOverKey((k) => (k === targetKey ? null : k)),
+        onDrop: (e: DragEvent) => {
+          e.preventDefault();
+          const source = dragKey.current ?? e.dataTransfer.getData('text/plain');
+          dragKey.current = null;
+          setOverKey(null);
+          if (!source || source === targetKey) return;
+          const current = sortKeys(present);
+          const from = current.indexOf(source);
+          const to = current.indexOf(targetKey);
+          if (from < 0 || to < 0) return;
+          current.splice(to, 0, ...current.splice(from, 1));
+          persist(current);
+        },
       };
     },
     [sortKeys, persist]
   );
 
-  return { sortKeys, onDragStart, onDragOver, makeOnDrop };
+  return { sortKeys, handleProps, targetProps, overKey };
 }

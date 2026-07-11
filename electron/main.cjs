@@ -16,10 +16,12 @@ let mainWindow = null;
 let tray = null;
 let isQuitting = false;
 
-// instância única: a segunda execução apenas traz a janela existente à frente
+// instância única: a segunda execução apenas traz a janela existente à frente.
+// Sem o lock, sai IMEDIATAMENTE — sem criar janela nenhuma (senão pisca uma
+// janela escura por alguns segundos antes do quit() completar).
 const singleInstanceLock = app.requestSingleInstanceLock();
 if (!singleInstanceLock) {
-  app.quit();
+  app.exit(0);
 }
 app.on('second-instance', () => {
   if (mainWindow) {

@@ -161,6 +161,7 @@ export interface DockDeskApi {
 }
 
 declare global {
+  const __APP_VERSION__: string;
   interface Window {
     dockdesk: DockDeskApi;
   }

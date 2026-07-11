@@ -29,11 +29,21 @@ test.afterAll(async () => {
   await app?.close();
 });
 
+// grupos começam recolhidos por padrão; expande se houver cabeçalho
+async function expandGroup(toggleTestId: string) {
+  const toggle = page.getByTestId(toggleTestId);
+  if ((await toggle.count()) === 0) return; // sem cabeçalho = sempre expandido
+  const cls = (await toggle.locator('.chevron').getAttribute('class')) ?? '';
+  if (cls.includes('closed')) await toggle.click();
+}
+
 test('abre o app e conecta na engine do Docker', async () => {
   await expect(page.getByTestId('engine-status')).toContainText(/Docker \d/, {
     timeout: 20_000,
   });
   await expect(page.getByTestId('containers-view')).toBeVisible();
+  // rodapé também mostra a versão do DockDesk
+  await expect(page.getByTestId('app-version')).toContainText(/DockDesk v\d+\.\d+\.\d+/);
 });
 
 test('alterna entre modo claro e escuro', async () => {
@@ -70,6 +80,11 @@ test('troca o idioma do app (6 idiomas) e volta para pt-BR', async () => {
 });
 
 test('lista o container de teste como Rodando', async () => {
+  // aguarda o polling montar os grupos e expande o de avulsos (padrão: recolhido)
+  await expect
+    .poll(async () => page.getByTestId('group-avulsos').count(), { timeout: 20_000 })
+    .toBeGreaterThan(0);
+  await expandGroup('group-toggle-avulsos');
   const card = page.getByTestId(`container-${FIXTURE_CONTAINER}`);
   await expect(card).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId(`badge-${FIXTURE_CONTAINER}`)).toHaveText('Rodando');
@@ -275,6 +290,7 @@ test('mostra volumes agrupados pelo projeto compose', async () => {
   await expect(page.getByTestId('volumes-view')).toBeVisible();
   const group = page.getByTestId(`volume-group-${COMPOSE_PROJECT_DIR_NAME}`);
   await expect(group).toBeVisible({ timeout: 20_000 });
+  await expandGroup(`volume-group-toggle-${COMPOSE_PROJECT_DIR_NAME}`);
   await expect(
     page.getByTestId(`volume-${COMPOSE_PROJECT_DIR_NAME}_dados`)
   ).toContainText('Em uso');
@@ -285,39 +301,65 @@ test('mostra redes agrupadas pelo projeto compose', async () => {
   await expect(page.getByTestId('networks-view')).toBeVisible();
   const group = page.getByTestId(`network-group-${COMPOSE_PROJECT_DIR_NAME}`);
   await expect(group).toBeVisible({ timeout: 20_000 });
+  await expandGroup(`network-group-toggle-${COMPOSE_PROJECT_DIR_NAME}`);
   await expect(
     page.getByTestId(`network-${COMPOSE_PROJECT_DIR_NAME}_default`)
   ).toContainText('conectado');
   // redes padrão do Docker aparecem no grupo de avulsas, sem botão de remover
   await expect(page.getByTestId('network-group-avulsas')).toBeVisible();
+  await expandGroup('network-group-toggle-avulsas');
   await expect(page.getByTestId('network-bridge')).toContainText('padrão do Docker');
 });
 
 test('containers do compose aparecem agrupados em sanfonado do projeto', async () => {
   await page.getByTestId('nav-containers').click();
 
-  // grupo sanfonado do projeto, com contagem
+  // grupo sanfonado do projeto, com contagem (recolhido por padrão)
   const group = page.getByTestId(`group-${COMPOSE_PROJECT_DIR_NAME}`);
   await expect(group).toBeVisible({ timeout: 20_000 });
   await expect(group).toContainText('2/2 rodando');
 
-  // containers dentro do grupo, com a tag do serviço
   const composeContainer = group.locator(
     `[data-testid^="container-${COMPOSE_PROJECT_DIR_NAME}-web"]`
   );
+  // padrão: recolhido — só a linha do grupo aparece
+  await expect(composeContainer).toHaveCount(0);
+
+  // expandindo, aparecem os containers com a tag do serviço
+  await page.getByTestId(`group-toggle-${COMPOSE_PROJECT_DIR_NAME}`).click();
   await expect(composeContainer).toBeVisible();
   await expect(composeContainer.locator('.compose-tag')).toContainText('web');
 
-  // o container avulso fica na seção de avulsos
+  // o container avulso fica na seção de avulsos (expandida no início da suíte)
   await expect(
     page.getByTestId('group-avulsos').getByTestId(`container-${FIXTURE_CONTAINER}`)
   ).toBeVisible();
+});
 
-  // recolher o sanfonado esconde os containers do projeto
+test('estado aberto/recolhido dos grupos persiste ao trocar de tela', async () => {
+  const group = page.getByTestId(`group-${COMPOSE_PROJECT_DIR_NAME}`);
+  const composeContainer = group.locator(
+    `[data-testid^="container-${COMPOSE_PROJECT_DIR_NAME}-web"]`
+  );
+  // deixado expandido no teste anterior; troca de tela e volta
+  await expect(composeContainer).toBeVisible();
+  await page.getByTestId('nav-images').click();
+  await page.getByTestId('nav-containers').click();
+  await expect(composeContainer).toBeVisible({ timeout: 20_000 });
+
+  // recolhe, troca de tela e volta: continua recolhido
   await page.getByTestId(`group-toggle-${COMPOSE_PROJECT_DIR_NAME}`).click();
   await expect(composeContainer).toHaveCount(0);
-  await page.getByTestId(`group-toggle-${COMPOSE_PROJECT_DIR_NAME}`).click();
-  await expect(composeContainer).toBeVisible();
+  await page.getByTestId('nav-images').click();
+  await page.getByTestId('nav-containers').click();
+  await expect(page.getByTestId(`group-${COMPOSE_PROJECT_DIR_NAME}`)).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(
+    page
+      .getByTestId(`group-${COMPOSE_PROJECT_DIR_NAME}`)
+      .locator(`[data-testid^="container-${COMPOSE_PROJECT_DIR_NAME}-web"]`)
+  ).toHaveCount(0);
 });
 
 test('reordena grupos arrastando e a ordem fica salva', async () => {
@@ -386,6 +428,7 @@ test('lista imagens locais agrupadas', async () => {
   await expect(page.getByTestId('images-view')).toBeVisible();
   // alpine não foi construída por compose: fica no grupo de avulsas
   await expect(page.getByTestId('image-group-avulsas')).toBeVisible({ timeout: 20_000 });
+  await expandGroup('image-group-toggle-avulsas');
   await expect(page.getByTestId('image-group-avulsas')).toContainText('alpine');
 });
 

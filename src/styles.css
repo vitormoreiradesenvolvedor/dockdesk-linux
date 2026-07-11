@@ -17,6 +17,8 @@
   --red: #f85149;
   --red-soft: rgba(248, 81, 73, 0.12);
   --gray-soft: rgba(139, 148, 158, 0.15);
+  --card-hover-border: #33405a;
+  --card-hover-bg: #181f29;
   --radius: 10px;
   --font: -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Ubuntu', 'Cantarell', sans-serif;
   --mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
@@ -43,6 +45,9 @@
   --red: #dc2626;
   --red-soft: rgba(220, 38, 38, 0.1);
   --gray-soft: rgba(85, 99, 122, 0.12);
+  /* no claro o hover é só uma borda mais escura, sem escurecer o card */
+  --card-hover-border: #64748b;
+  --card-hover-bg: var(--panel);
 }
 
 :root[data-theme='light'] ::-webkit-scrollbar-thumb {
@@ -221,9 +226,12 @@ button { font-family: inherit; }
   font-size: 12px;
   color: var(--text-faint);
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
 }
+
+.footer-line { display: flex; align-items: center; gap: 8px; }
+.app-version { padding-left: 16px; font-size: 11px; opacity: 0.8; }
 
 .engine-dot {
   width: 8px;
@@ -325,7 +333,7 @@ button { font-family: inherit; }
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 }
-.container-card:hover { border-color: #33405a; background: #181f29; }
+.container-card:hover { border-color: var(--card-hover-border); background: var(--card-hover-bg); }
 
 .state-indicator {
   width: 10px;
@@ -782,7 +790,13 @@ button { font-family: inherit; }
   transition: border-color 0.15s, background 0.15s;
   text-align: left;
 }
-.group-header:hover { border-color: #33405a; }
+.group-header:hover { border-color: var(--card-hover-border); }
+
+.group-header.drag-over,
+.compose-card.drag-over {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
 
 .group-name { flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .group-header .badge { margin-left: auto; }

@@ -94,9 +94,14 @@ export function Sidebar({
         </label>
       </div>
 
-      <div className="sidebar-footer" data-testid="engine-status">
-        <span className={`engine-dot ${engine.ok ? 'ok' : ''}`} />
-        {engine.ok ? `Docker ${engine.version}` : t('engine_unavailable')}
+      <div className="sidebar-footer">
+        <div className="footer-line" data-testid="engine-status">
+          <span className={`engine-dot ${engine.ok ? 'ok' : ''}`} />
+          {engine.ok ? `Docker ${engine.version}` : t('engine_unavailable')}
+        </div>
+        <div className="footer-line app-version" data-testid="app-version">
+          DockDesk v{__APP_VERSION__}
+        </div>
       </div>
     </aside>
   );

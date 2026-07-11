@@ -174,16 +174,14 @@ export function ComposeView({ notify }: Props) {
             return (
               <div
                 key={p.file}
-                className="compose-card"
+                className={`compose-card ${order.overKey === p.file ? 'drag-over' : ''}`}
                 data-testid={`compose-${p.name}`}
-                onDragOver={order.onDragOver}
-                onDrop={order.makeOnDrop(p.file, allFiles)}
+                {...order.targetProps(p.file, allFiles)}
               >
                 <div className="compose-card-head">
                   <span
                     className="drag-handle"
-                    draggable
-                    onDragStart={order.onDragStart(p.file)}
+                    {...order.handleProps(p.file)}
                     title={t('drag_reorder')}
                     data-testid={`compose-drag-${p.name}`}
                   >

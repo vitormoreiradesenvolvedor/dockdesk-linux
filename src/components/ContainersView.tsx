@@ -16,6 +16,7 @@ import { formatBytes } from '../utils';
 import { ContainerDetail } from './ContainerDetail';
 import { useI18n } from '../i18n';
 import { useGroupOrder } from '../hooks/useGroupOrder';
+import { useCollapsedGroups } from '../hooks/useCollapsedGroups';
 
 const LOOSE = '__loose__';
 
@@ -33,7 +34,7 @@ export function ContainersView({ containers, stats, onRefresh, notify }: Props) 
   const [initialTab, setInitialTab] = useState<'overview' | 'terminal'>('overview');
   const [busy, setBusy] = useState<Record<string, string>>({});
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const collapsed = useCollapsedGroups('containers');
   const order = useGroupOrder('containers');
 
   const filtered = containers.filter(
@@ -58,15 +59,6 @@ export function ContainersView({ containers, stats, onRefresh, notify }: Props) 
   const selectedLive = selected
     ? containers.find((c) => c.id === selected.id) ?? selected
     : null;
-
-  function toggleGroup(name: string) {
-    setCollapsed((s) => {
-      const next = new Set(s);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
-  }
 
   async function runAction(c: ContainerSummary, action: string) {
     setBusy((b) => ({ ...b, [c.id]: action }));
@@ -255,19 +247,18 @@ export function ContainersView({ containers, stats, onRefresh, notify }: Props) 
           const items = groups.get(key)!;
           const isLoose = key === LOOSE;
           const runningCount = items.filter((c) => c.state === 'running').length;
-          const isCollapsed = collapsed.has(key);
           const testName = isLoose ? 'avulsos' : key;
           const showHeader = !isLoose || hasProjects;
+          // busca ativa ou seção sem cabeçalho: sempre expandido
+          const isCollapsed = showHeader && filter === '' && collapsed.isCollapsed(key);
           return (
             <section key={key} className="group-section" data-testid={`group-${testName}`}>
               {showHeader && (
                 <div
-                  className="group-header"
-                  draggable
-                  onDragStart={order.onDragStart(key)}
-                  onDragOver={order.onDragOver}
-                  onDrop={order.makeOnDrop(key, [...groups.keys()])}
-                  onClick={() => toggleGroup(key)}
+                  className={`group-header ${order.overKey === key ? 'drag-over' : ''}`}
+                  {...order.handleProps(key)}
+                  {...order.targetProps(key, [...groups.keys()])}
+                  onClick={() => collapsed.toggle(key)}
                   data-testid={`group-toggle-${testName}`}
                   title={t('drag_reorder')}
                 >
