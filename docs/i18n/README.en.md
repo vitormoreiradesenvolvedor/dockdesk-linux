@@ -2,7 +2,7 @@
 
 # DockDesk
 
-**Docker without memorizing commands — a complete GUI for Linux.**
+**Docker without memorizing commands: a complete GUI for Linux.**
 
 <br clear="left"/>
 
@@ -15,26 +15,26 @@
 Every team has that project that "just needs a docker compose up"… and someone who gets stuck right there.
 Front-end developers, QAs, technical designers, newcomers to the team: people who **need** containers every day but don't want (and shouldn't have to) memorize `docker exec -it`, log flags, or the right order to start services.
 
-DockDesk exists for that audience: **people who develop on projects that use Docker without being Docker experts**. Everything the daily routine requires is one click away, with clear names, in six languages — without hiding what happens underneath (the equivalent commands are shown in the UI).
+DockDesk exists for that audience: **people who develop on projects that use Docker without being Docker experts**. Everything the daily routine requires is one click away, with clear names, in six languages, without hiding what happens underneath (the equivalent commands are shown in the UI).
 
 ## What it does
 
 ### Containers
 - Live list with status, **CPU and memory** usage, mapped ports and search;
 - **Start, stop, restart and remove** in one click (removal asks for confirmation);
-- Containers **grouped by Compose project** in accordions — including projects started outside DockDesk — with remembered open/collapsed state and **drag-and-drop reordering**;
+- Containers **grouped by Compose project** in accordions (including projects started outside DockDesk), with remembered open/collapsed state and **drag-and-drop reordering**;
 - Details panel: image, internal IP, networks, ports, volumes/mounts and environment variables.
 
 ### Terminal and commands
 - **Real interactive terminal** (equivalent to `docker exec -it`), with **automatic detection of the shells** available in the image (bash, zsh, fish, ash, sh…) so you can pick one;
-- **Run command** with output, stderr and exit code — no terminal needed;
+- **Run command** with output, stderr and exit code, no terminal needed;
 - **Live logs** with smart auto-scroll;
 - Tabs preserve what is running when you switch, with clear buttons.
 
 ### Routines (per-container shortcuts)
 - Create buttons like `htop`, `npm run dev` or `composer install`;
 - **Partial routines**: a fixed command (e.g. `cd /home/project`) asks for its complement at run time (e.g. `&& npm install`);
-- Each routine runs in **its own terminal attached to its row**, visible while the process lives — perfect for `npm run dev` — with a **running indicator** and a stop button;
+- Each routine runs in **its own terminal attached to its row**, visible while the process lives (perfect for `npm run dev`), with a **running indicator**, minimize and a stop button;
 - Saved by container name: they survive container recreation.
 
 ### Compose projects
@@ -49,12 +49,12 @@ DockDesk exists for that audience: **people who develop on projects that use Doc
 
 ### Experience
 - **Light/dark theme** with one click;
-- **6 languages**: Português (BR), English, 中文, हिन्दी, Español and Français — UI and tray;
+- **6 languages**: Português (BR), English, 中文, हिन्दी, Español and Français, in the UI and the tray;
 - **System tray**: closing hides to the tray; options to start with the system and start hidden;
 - **Single instance**: opening again just focuses the existing window;
 - Group order, theme, language and accordion states persist across sessions.
 
-![DockDesk — containers view](../screenshot-containers.png)
+![DockDesk, containers view](../screenshot-containers.png)
 
 ## Installation
 
