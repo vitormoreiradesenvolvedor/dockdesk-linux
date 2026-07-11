@@ -25,7 +25,7 @@ contextBridge.exposeInMainWorld('dockdesk', {
     command: (id, cmd) => ipcRenderer.invoke('exec:command', id, cmd),
   },
   term: {
-    open: (id, shell, termId) => ipcRenderer.invoke('term:open', id, shell, termId),
+    open: (id, spec, termId) => ipcRenderer.invoke('term:open', id, spec, termId),
     write: (termId, data) => ipcRenderer.send('term:write', termId, data),
     resize: (termId, cols, rows) => ipcRenderer.send('term:resize', termId, cols, rows),
     close: (termId) => ipcRenderer.send('term:close', termId),

@@ -243,10 +243,12 @@ const termLog = process.env.DOCKDESK_TERM_LOG
       )
   : null;
 
-async function openTerminal(id, shell, termId, onData, onExit) {
+// spec: { shell: 'bash' } abre um shell interativo;
+//       { command: 'npm run dev' } roda o comando em um TTY (via sh -c)
+async function openTerminal(id, spec, termId, onData, onExit) {
   const container = docker.getContainer(id);
   const exec = await container.exec({
-    Cmd: [shell],
+    Cmd: spec.command ? ['/bin/sh', '-c', spec.command] : [spec.shell],
     AttachStdin: true,
     AttachStdout: true,
     AttachStderr: true,

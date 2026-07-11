@@ -116,7 +116,11 @@ export interface DockDeskApi {
     command: (id: string, cmd: string) => Promise<ExecResult>;
   };
   term: {
-    open: (id: string, shell: string, termId: string) => Promise<void>;
+    open: (
+      id: string,
+      spec: { shell: string } | { command: string },
+      termId: string
+    ) => Promise<void>;
     write: (termId: string, data: string) => void;
     resize: (termId: string, cols: number, rows: number) => void;
     close: (termId: string) => void;

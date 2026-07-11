@@ -1,19 +1,27 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { Play, Plus, Pencil, Trash2, ListChecks } from 'lucide-react';
+import { Play, Plus, Pencil, Trash2, ListChecks, Loader2, Square, X } from 'lucide-react';
 import type { ContainerSummary, Routine } from '../global';
 import { useI18n } from '../i18n';
+import { InlineTerminal } from './InlineTerminal';
+
+interface Session {
+  command: string;
+  exited: boolean;
+}
 
 interface Props {
   container: ContainerSummary;
-  onRunInTerminal: (cmd: string) => void;
+  notify: (text: string, kind?: 'error' | 'info') => void;
 }
 
-export function RoutinesPane({ container, onRunInTerminal }: Props) {
+export function RoutinesPane({ container, notify }: Props) {
   const { t } = useI18n();
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [editing, setEditing] = useState<Routine | 'new' | null>(null);
   const [complementFor, setComplementFor] = useState<Routine | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  // sessões de terminal atreladas à linha de cada rotina (id -> sessão)
+  const [sessions, setSessions] = useState<Record<string, Session>>({});
 
   // rotinas ficam salvas pelo NOME do container: sobrevivem a recriações
   const storageKey = container.name;
@@ -27,12 +35,29 @@ export function RoutinesPane({ container, onRunInTerminal }: Props) {
     await window.dockdesk.routines.save(storageKey, list);
   }
 
+  function start(routine: Routine, command: string) {
+    setSessions((s) => ({ ...s, [routine.id]: { command, exited: false } }));
+  }
+
   function run(routine: Routine) {
+    if (sessions[routine.id] && !sessions[routine.id].exited) return; // já rodando
     if (routine.partial) {
       setComplementFor(routine);
     } else {
-      onRunInTerminal(routine.command);
+      start(routine, routine.command);
     }
+  }
+
+  function markExited(id: string) {
+    setSessions((s) => (s[id] ? { ...s, [id]: { ...s[id], exited: true } } : s));
+  }
+
+  function closeSession(id: string) {
+    setSessions((s) => {
+      const next = { ...s };
+      delete next[id];
+      return next;
+    });
   }
 
   return (
@@ -60,59 +85,121 @@ export function RoutinesPane({ container, onRunInTerminal }: Props) {
         </div>
       ) : (
         <div className="routine-list">
-          {routines.map((r) => (
-            <div key={r.id} className="routine-card" data-testid={`routine-${r.label}`}>
-              <button
-                className="routine-run"
-                onClick={() => run(r)}
-                data-testid={`routine-run-${r.label}`}
-                title={r.partial ? t('routine_run_partial') : t('routine_run')}
+          {routines.map((r) => {
+            const session = sessions[r.id];
+            const isRunning = !!session && !session.exited;
+            return (
+              <div
+                key={r.id}
+                className={`routine-block ${isRunning ? 'running' : ''}`}
+                data-testid={`routine-${r.label}`}
               >
-                <Play size={15} />
-              </button>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="routine-label">
-                  {r.label}
-                  {r.partial && (
-                    <span className="compose-tag" title={t('routine_run_partial')}>
-                      {t('routines_partial_badge')}
-                    </span>
+                <div className="routine-card">
+                  <button
+                    className={`routine-run ${isRunning ? 'busy' : ''}`}
+                    onClick={() => run(r)}
+                    data-testid={`routine-run-${r.label}`}
+                    title={
+                      isRunning
+                        ? t('routine_running')
+                        : r.partial
+                          ? t('routine_run_partial')
+                          : t('routine_run')
+                    }
+                  >
+                    {isRunning ? <Loader2 size={15} className="spin" /> : <Play size={15} />}
+                  </button>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="routine-label">
+                      {r.label}
+                      {r.partial && (
+                        <span className="compose-tag" title={t('routine_run_partial')}>
+                          {t('routines_partial_badge')}
+                        </span>
+                      )}
+                      {isRunning && (
+                        <span
+                          className="badge running"
+                          data-testid={`routine-running-${r.label}`}
+                        >
+                          {t('routine_running')}
+                        </span>
+                      )}
+                    </div>
+                    <code className="routine-cmd">
+                      {session ? session.command : r.command}
+                      {!session && r.partial ? ' …' : ''}
+                    </code>
+                  </div>
+                  {isRunning && (
+                    <button
+                      className="btn icon-only sm danger"
+                      title={t('routine_stop')}
+                      onClick={() => closeSession(r.id)}
+                      data-testid={`routine-stop-${r.label}`}
+                    >
+                      <Square size={13} />
+                    </button>
+                  )}
+                  <button
+                    className="btn icon-only sm"
+                    title={t('routine_edit')}
+                    onClick={() => setEditing(r)}
+                    data-testid={`routine-edit-${r.label}`}
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  {confirmDelete === r.id ? (
+                    <button
+                      className="btn sm danger"
+                      onClick={() => {
+                        persist(routines.filter((x) => x.id !== r.id));
+                        setConfirmDelete(null);
+                      }}
+                    >
+                      {t('confirm')}
+                    </button>
+                  ) : (
+                    <button
+                      className="btn icon-only sm danger"
+                      title={t('routine_delete')}
+                      onClick={() => setConfirmDelete(r.id)}
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   )}
                 </div>
-                <code className="routine-cmd">
-                  {r.command}
-                  {r.partial ? ' …' : ''}
-                </code>
+
+                {session && (
+                  <div className="routine-terminal" data-testid={`routine-terminal-${r.label}`}>
+                    <InlineTerminal
+                      containerId={container.id}
+                      spec={{ command: session.command }}
+                      onExit={() => markExited(r.id)}
+                      onError={(msg) => notify(t('term_open_fail', { msg }))}
+                      height={220}
+                    />
+                    <p className="term-hint" style={{ margin: '8px 0 0' }}>
+                      {session.exited ? (
+                        <>
+                          {t('routine_finished')}{' '}
+                          <button
+                            className="btn sm"
+                            onClick={() => closeSession(r.id)}
+                            data-testid={`routine-close-${r.label}`}
+                          >
+                            <X size={13} /> {t('close')}
+                          </button>
+                        </>
+                      ) : (
+                        t('routine_terminal_hint')
+                      )}
+                    </p>
+                  </div>
+                )}
               </div>
-              <button
-                className="btn icon-only sm"
-                title={t('routine_edit')}
-                onClick={() => setEditing(r)}
-                data-testid={`routine-edit-${r.label}`}
-              >
-                <Pencil size={13} />
-              </button>
-              {confirmDelete === r.id ? (
-                <button
-                  className="btn sm danger"
-                  onClick={() => {
-                    persist(routines.filter((x) => x.id !== r.id));
-                    setConfirmDelete(null);
-                  }}
-                >
-                  {t('confirm')}
-                </button>
-              ) : (
-                <button
-                  className="btn icon-only sm danger"
-                  title={t('routine_delete')}
-                  onClick={() => setConfirmDelete(r.id)}
-                >
-                  <Trash2 size={13} />
-                </button>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -133,7 +220,7 @@ export function RoutinesPane({ container, onRunInTerminal }: Props) {
           routine={complementFor}
           onCancel={() => setComplementFor(null)}
           onRun={(complement) => {
-            onRunInTerminal(`${complementFor.command} ${complement}`.trim());
+            start(complementFor, `${complementFor.command} ${complement}`.trim());
             setComplementFor(null);
           }}
         />

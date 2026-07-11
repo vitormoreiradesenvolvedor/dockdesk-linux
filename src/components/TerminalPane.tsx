@@ -8,11 +8,9 @@ import { useI18n } from '../i18n';
 interface Props {
   container: ContainerSummary;
   notify: (text: string, kind?: 'error' | 'info') => void;
-  pendingCommand?: string | null;
-  onCommandSent?: () => void;
 }
 
-export function TerminalPane({ container, notify, pendingCommand, onCommandSent }: Props) {
+export function TerminalPane({ container, notify }: Props) {
   const { t } = useI18n();
   const [shells, setShells] = useState<string[] | null>(null);
   const [shell, setShell] = useState<string | null>(null);
@@ -37,13 +35,6 @@ export function TerminalPane({ container, notify, pendingCommand, onCommandSent 
     };
   }, [container.id, running]);
 
-  // uma rotina pediu para rodar: abre a sessão automaticamente se necessário
-  useEffect(() => {
-    if (pendingCommand && running && !sessionShell && shell) {
-      setSessionShell(shell);
-    }
-  }, [pendingCommand, running, sessionShell, shell]);
-
   if (!running) {
     return (
       <div className="centered-note" data-testid="terminal-pane">
@@ -60,8 +51,6 @@ export function TerminalPane({ container, notify, pendingCommand, onCommandSent 
         shell={sessionShell}
         onEnd={endSession}
         notify={notify}
-        pendingCommand={pendingCommand ?? null}
-        onCommandSent={onCommandSent}
       />
     );
   }
@@ -120,23 +109,16 @@ function TerminalSession({
   shell,
   onEnd,
   notify,
-  pendingCommand,
-  onCommandSent,
 }: {
   containerId: string;
   shell: string;
   onEnd: () => void;
   notify: (text: string, kind?: 'error' | 'info') => void;
-  pendingCommand: string | null;
-  onCommandSent?: () => void;
 }) {
   const { t } = useI18n();
   const wrapRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
-  const termIdRef = useRef<string | null>(null);
   const [exited, setExited] = useState(false);
-  // pronto = conectado + tempo para o prompt/handshake do shell assentar
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -163,10 +145,8 @@ function TerminalSession({
     // o renderer gera o termId e se inscreve ANTES de abrir o exec: nenhum
     // byte do stream (prompt, consultas de cursor do shell) pode se perder
     const termId = `term-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    termIdRef.current = termId;
     let disposed = false;
     let connected = false;
-    let readyTimer: ReturnType<typeof setTimeout> | null = null;
     const cleanups: (() => void)[] = [];
 
     cleanups.push(
@@ -179,7 +159,7 @@ function TerminalSession({
     );
 
     window.dockdesk.term
-      .open(containerId, shell, termId)
+      .open(containerId, { shell }, termId)
       .then(() => {
         if (disposed) {
           window.dockdesk.term.close(termId);
@@ -187,7 +167,6 @@ function TerminalSession({
         }
         connected = true;
         window.dockdesk.term.resize(termId, xterm.cols, xterm.rows);
-        readyTimer = setTimeout(() => setReady(true), 500);
       })
       .catch((err) => {
         notify(t('term_open_fail', { msg: err.message }));
@@ -207,7 +186,6 @@ function TerminalSession({
     return () => {
       disposed = true;
       if (fitTimer) clearTimeout(fitTimer);
-      if (readyTimer) clearTimeout(readyTimer);
       observer.disconnect();
       window.removeEventListener('resize', scheduleFit);
       cleanups.forEach((c) => c());
@@ -216,15 +194,6 @@ function TerminalSession({
       xtermRef.current = null;
     };
   }, [containerId, shell, notify, onEnd, t]);
-
-  // rotina pendente: envia o comando quando a sessão estiver pronta
-  useEffect(() => {
-    if (ready && pendingCommand && termIdRef.current && !exited) {
-      window.dockdesk.term.write(termIdRef.current, pendingCommand + '\r');
-      xtermRef.current?.focus();
-      onCommandSent?.();
-    }
-  }, [ready, pendingCommand, exited, onCommandSent]);
 
   return (
     <div

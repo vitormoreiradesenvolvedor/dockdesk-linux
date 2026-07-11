@@ -163,25 +163,37 @@ test('mantém terminal e saída do exec ao alternar abas, com botão de limpar',
   await expect(page.getByTestId('exec-output')).not.toContainText('saida-do-exec-ok');
 });
 
-test('cria e executa uma rotina simples no terminal', async () => {
+test('executa rotina com terminal atrelado à linha e indicador de execução', async () => {
   await page.getByTestId('tab-routines').click();
   await expect(page.getByTestId('routines-pane')).toBeVisible();
 
   await page.getByTestId('routine-new').click();
   await page.getByTestId('routine-label-input').fill('Diagnóstico');
-  await page.getByTestId('routine-command-input').fill('echo rotina-simples-$((700+77))');
+  await page
+    .getByTestId('routine-command-input')
+    .fill('echo rotina-simples-$((700+77)) && sleep 2');
   await page.getByTestId('routine-save').click();
 
   await page.getByTestId('routine-run-Diagnóstico').click();
-  // executar leva direto para a aba do terminal, na sessão já aberta
-  await expect(
-    page.getByTestId('terminal-session').locator('.xterm-rows')
-  ).toContainText('rotina-simples-777', { timeout: 20_000 });
+
+  // enquanto roda: indicador na linha + terminal sanfonado atrelado
+  await expect(page.getByTestId('routine-running-Diagnóstico')).toBeVisible();
+  const term = page.getByTestId('routine-terminal-Diagnóstico');
+  await expect(term).toBeVisible();
+  await expect(term.locator('.xterm-rows')).toContainText('rotina-simples-777', {
+    timeout: 20_000,
+  });
+
+  // quando o comando termina: indicador some, status de finalizado aparece
+  await expect(page.getByTestId('routine-running-Diagnóstico')).toHaveCount(0, {
+    timeout: 20_000,
+  });
+  await expect(term).toContainText('Comando finalizado');
+  await page.getByTestId('routine-close-Diagnóstico').click();
+  await expect(term).toHaveCount(0);
 });
 
 test('executa rotina parcial pedindo complemento em modal', async () => {
-  await page.getByTestId('tab-routines').click();
-
   await page.getByTestId('routine-new').click();
   await page.getByTestId('routine-label-input').fill('Preparar');
   await page.getByTestId('routine-command-input').fill('echo inicio');
@@ -193,12 +205,14 @@ test('executa rotina parcial pedindo complemento em modal', async () => {
   await page.getByTestId('complement-input').fill('&& echo fim-parcial-$((800+88))');
   await page.getByTestId('complement-run').click();
 
-  await expect(
-    page.getByTestId('terminal-session').locator('.xterm-rows')
-  ).toContainText('fim-parcial-888', { timeout: 20_000 });
+  const term = page.getByTestId('routine-terminal-Preparar');
+  await expect(term.locator('.xterm-rows')).toContainText('fim-parcial-888', {
+    timeout: 20_000,
+  });
+  await expect(page.getByTestId('routine-close-Preparar')).toBeVisible({ timeout: 20_000 });
+  await page.getByTestId('routine-close-Preparar').click();
 
-  // rotinas ficam persistidas (recarrega a lista ao reabrir a aba)
-  await page.getByTestId('tab-routines').click();
+  // rotinas ficam persistidas
   await expect(page.getByTestId('routine-Diagnóstico')).toBeVisible();
   await expect(page.getByTestId('routine-Preparar')).toContainText('complementável');
 });
