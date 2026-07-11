@@ -108,16 +108,10 @@ button { font-family: inherit; }
   padding: 4px 8px 18px;
 }
 
-.logo-mark {
-  width: 34px;
-  height: 34px;
+.logo-mark-img {
   border-radius: 9px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
   box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+  flex-shrink: 0;
 }
 
 .logo-name {
@@ -610,6 +604,22 @@ button { font-family: inherit; }
   outline: none;
 }
 .exec-input:focus { border-color: var(--accent); }
+.exec-input::placeholder { color: var(--text-faint); }
+
+/* no claro os campos de texto ficam claros — o texto (escuro) segue legível */
+:root[data-theme='light'] .exec-input {
+  background: #ffffff;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* exceção: o campo do complemento fica sobre o console escuro, então o
+   texto é sempre claro, em qualquer tema */
+.complement-preview .exec-input,
+:root[data-theme='light'] .complement-preview .exec-input {
+  background: transparent;
+  color: #e6edf3;
+}
 
 .exec-output {
   flex: 1;

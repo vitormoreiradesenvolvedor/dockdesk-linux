@@ -42,9 +42,7 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="logo">
-        <div className="logo-mark">
-          <Logo size={24} />
-        </div>
+        <Logo size={34} />
         <div className="logo-name">
           Dock<span>Desk</span>
         </div>
