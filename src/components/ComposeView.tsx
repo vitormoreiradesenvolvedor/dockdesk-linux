@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FolderPlus,
   FolderSearch,
@@ -10,24 +10,60 @@ import {
   Layers,
   RefreshCw,
   GripVertical,
+  ChevronDown,
+  Terminal,
 } from 'lucide-react';
-import type { ComposeProject, ComposeStatus } from '../global';
+import type { ComposeProject, ComposeStatus, ContainerSummary } from '../global';
 import { useI18n } from '../i18n';
 import { useGroupOrder } from '../hooks/useGroupOrder';
 
 interface Props {
+  containers: ContainerSummary[];
   notify: (text: string, kind?: 'error' | 'info') => void;
 }
 
-export function ComposeView({ notify }: Props) {
+// o Docker Compose normaliza o nome do projeto (pasta): minúsculas e só
+// [a-z0-9_-]; replica a regra para casar com o label dos containers
+function normalizeProjectName(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+}
+
+export function ComposeView({ containers, notify }: Props) {
   const { t } = useI18n();
   const [folders, setFolders] = useState<string[]>([]);
   const [projects, setProjects] = useState<ComposeProject[] | null>(null);
-  const [statuses, setStatuses] = useState<Record<string, ComposeStatus>>({});
   const [runningAction, setRunningAction] = useState<Record<string, string>>({});
   const [consoles, setConsoles] = useState<Record<string, string>>({});
+  const [consoleMin, setConsoleMin] = useState<Record<string, boolean>>({});
   const [scanning, setScanning] = useState(false);
   const order = useGroupOrder('compose');
+
+  // estado dos projetos derivado da lista de containers que o app já
+  // monitora a cada poucos segundos — atualiza em tempo real, sem precisar
+  // rodar `docker compose ps` por projeto
+  const statuses = useMemo(() => {
+    const map: Record<string, ComposeStatus> = {};
+    if (!projects) return map;
+    for (const p of projects) {
+      const normalized = normalizeProjectName(p.name);
+      const own = containers.filter(
+        (c) =>
+          c.composeProject !== null &&
+          (c.composeWorkingDir === p.dir || c.composeProject === normalized)
+      );
+      map[p.file] = {
+        running: own.filter((c) => c.state === 'running').length,
+        total: own.length,
+        containers: own.map((c) => ({
+          name: c.name,
+          service: c.composeService ?? '',
+          state: c.state,
+          status: c.status,
+        })),
+      };
+    }
+    return map;
+  }, [projects, containers]);
 
   const refresh = useCallback(async () => {
     setScanning(true);
@@ -38,10 +74,6 @@ export function ComposeView({ notify }: Props) {
       ]);
       setFolders(f);
       setProjects(p);
-      const entries = await Promise.all(
-        p.map(async (proj) => [proj.file, await window.dockdesk.compose.status(proj.file)] as const)
-      );
-      setStatuses(Object.fromEntries(entries));
     } catch (err: any) {
       notify(t('compose_scan_fail', { msg: err.message }));
     } finally {
@@ -69,6 +101,8 @@ export function ComposeView({ notify }: Props) {
       ...c,
       [project.file]: `$ docker compose ${action === 'up' ? 'up -d' : action}\n`,
     }));
+    // nova execução começa com o terminal expandido
+    setConsoleMin((m) => ({ ...m, [project.file]: false }));
     try {
       const runId = await window.dockdesk.compose.run(project.file, action);
       const unsubOut = window.dockdesk.compose.onOutput(runId, (text) => {
@@ -77,7 +111,7 @@ export function ComposeView({ notify }: Props) {
           [project.file]: ((c[project.file] ?? '') + text).slice(-50_000),
         }));
       });
-      window.dockdesk.compose.onDone(runId, async (exitCode) => {
+      window.dockdesk.compose.onDone(runId, (exitCode) => {
         unsubOut();
         setConsoles((c) => ({
           ...c,
@@ -92,8 +126,6 @@ export function ComposeView({ notify }: Props) {
           delete next[project.file];
           return next;
         });
-        const status = await window.dockdesk.compose.status(project.file);
-        setStatuses((s) => ({ ...s, [project.file]: status }));
       });
     } catch (err: any) {
       notify(t('compose_action_fail', { action, msg: err.message }));
@@ -257,9 +289,35 @@ export function ComposeView({ notify }: Props) {
                   </div>
                 )}
                 {consoleText && (
-                  <pre className="compose-console" data-testid={`compose-console-${p.name}`}>
-                    {consoleText}
-                  </pre>
+                  <>
+                    <div
+                      className={`compose-console-bar ${consoleMin[p.file] ? 'collapsed' : ''}`}
+                    >
+                      <Terminal size={13} />
+                      <span className="console-bar-label">docker compose</span>
+                      {action && <Loader2 size={13} className="spin" />}
+                      <button
+                        className="btn icon-only sm"
+                        onClick={() =>
+                          setConsoleMin((m) => ({ ...m, [p.file]: !m[p.file] }))
+                        }
+                        title={consoleMin[p.file] ? t('routine_expand') : t('routine_minimize')}
+                        data-testid={`compose-console-toggle-${p.name}`}
+                      >
+                        <ChevronDown
+                          size={14}
+                          className={`chevron ${consoleMin[p.file] ? 'closed' : ''}`}
+                        />
+                      </button>
+                    </div>
+                    <pre
+                      className="compose-console"
+                      style={{ display: consoleMin[p.file] ? 'none' : undefined }}
+                      data-testid={`compose-console-${p.name}`}
+                    >
+                      {consoleText}
+                    </pre>
+                  </>
                 )}
               </div>
             );

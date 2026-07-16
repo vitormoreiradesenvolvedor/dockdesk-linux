@@ -33,6 +33,7 @@ export function ContainersView({ containers, stats, onRefresh, notify }: Props) 
   const [selected, setSelected] = useState<ContainerSummary | null>(null);
   const [initialTab, setInitialTab] = useState<'overview' | 'terminal'>('overview');
   const [busy, setBusy] = useState<Record<string, string>>({});
+  const [groupBusy, setGroupBusy] = useState<Record<string, boolean>>({});
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const collapsed = useCollapsedGroups('containers');
   const order = useGroupOrder('containers');
@@ -75,6 +76,28 @@ export function ContainersView({ containers, stats, onRefresh, notify }: Props) 
         return next;
       });
       setConfirmRemove(null);
+    }
+  }
+
+  async function runGroupAction(key: string, items: ContainerSummary[], action: 'start' | 'stop') {
+    const targets = items.filter((c) =>
+      action === 'start' ? c.state !== 'running' : c.state === 'running'
+    );
+    if (targets.length === 0) return;
+    setGroupBusy((g) => ({ ...g, [key]: true }));
+    try {
+      const results = await Promise.allSettled(
+        targets.map((c) => window.dockdesk.containers.action(c.id, action))
+      );
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      if (failed > 0) notify(t('group_action_fail', { n: failed }));
+      await onRefresh();
+    } finally {
+      setGroupBusy((g) => {
+        const next = { ...g };
+        delete next[key];
+        return next;
+      });
     }
   }
 
@@ -275,6 +298,44 @@ export function ContainersView({ containers, stats, onRefresh, notify }: Props) 
                   {!isLoose && <span className="compose-tag">{t('tag_compose')}</span>}
                   <span className={`badge ${runningCount > 0 ? 'running' : 'exited'}`}>
                     {t('running_count', { n: runningCount, total: items.length })}
+                  </span>
+                  <span
+                    className="group-actions"
+                    onClick={(e) => e.stopPropagation()}
+                    draggable={false}
+                    onDragStart={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                  >
+                    {groupBusy[key] ? (
+                      <button className="btn icon-only" disabled>
+                        <Loader2 size={14} className="spin" />
+                      </button>
+                    ) : (
+                      <>
+                        {runningCount < items.length && (
+                          <button
+                            className="btn icon-only success"
+                            title={t('group_start_all')}
+                            data-testid={`group-start-all-${testName}`}
+                            onClick={() => runGroupAction(key, items, 'start')}
+                          >
+                            <Play size={14} />
+                          </button>
+                        )}
+                        {runningCount > 0 && (
+                          <button
+                            className="btn icon-only danger"
+                            title={t('group_stop_all')}
+                            data-testid={`group-stop-all-${testName}`}
+                            onClick={() => runGroupAction(key, items, 'stop')}
+                          >
+                            <Square size={14} />
+                          </button>
+                        )}
+                      </>
+                    )}
                   </span>
                 </div>
               )}

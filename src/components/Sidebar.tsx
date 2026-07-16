@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Boxes, Layers, HardDrive, Database, Network, Sun, Moon, Globe } from 'lucide-react';
 import { useI18n, LANGS, type Lang } from '../i18n';
 import type { Theme } from '../hooks/useTheme';
@@ -24,6 +25,21 @@ export function Sidebar({
   onToggleTheme,
 }: Props) {
   const { t, lang, setLang } = useI18n();
+  const [trayEnabled, setTrayEnabled] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    window.dockdesk.settings.getTrayEnabled().then((v) => alive && setTrayEnabled(v));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  async function toggleTray() {
+    const next = !trayEnabled;
+    setTrayEnabled(next);
+    await window.dockdesk.settings.setTrayEnabled(next);
+  }
 
   const items: { key: ViewName; icon: typeof Boxes; label: string; badge?: string }[] = [
     {
@@ -98,6 +114,15 @@ export function Sidebar({
         <div className="footer-line app-version" data-testid="app-version">
           DockDesk v{__APP_VERSION__}
         </div>
+        <label className="footer-line tray-toggle" title={t('tray_icon_hint')}>
+          <input
+            type="checkbox"
+            checked={trayEnabled}
+            onChange={toggleTray}
+            data-testid="tray-toggle"
+          />
+          {t('tray_icon_label')}
+        </label>
       </div>
     </aside>
   );

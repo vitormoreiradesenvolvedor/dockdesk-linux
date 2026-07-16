@@ -79,6 +79,23 @@ test('troca o idioma do app (6 idiomas) e volta para pt-BR', async () => {
   await expect(page.getByTestId('nav-compose')).toContainText('Projetos Compose');
 });
 
+test('permite desativar o ícone da bandeja pelo rodapé', async () => {
+  const toggle = page.getByTestId('tray-toggle');
+  await expect(toggle).toBeVisible();
+  await expect(toggle).toBeChecked();
+
+  await toggle.uncheck();
+  await expect
+    .poll(() => page.evaluate(() => window.dockdesk.settings.getTrayEnabled()))
+    .toBe(false);
+
+  // reativa para não afetar o resto da suíte
+  await toggle.check();
+  await expect
+    .poll(() => page.evaluate(() => window.dockdesk.settings.getTrayEnabled()))
+    .toBe(true);
+});
+
 test('lista o container de teste como Rodando', async () => {
   // aguarda o polling montar os grupos e expande o de avulsos (padrão: recolhido)
   await expect
@@ -306,6 +323,37 @@ test('sobe o projeto compose com um clique (up -d)', async () => {
   ).toBeVisible();
 });
 
+test('terminal do compose pode ser recolhido e expandido (sanfonado)', async () => {
+  const consoleBox = page.getByTestId(`compose-console-${COMPOSE_PROJECT_DIR_NAME}`);
+  const toggle = page.getByTestId(`compose-console-toggle-${COMPOSE_PROJECT_DIR_NAME}`);
+  await expect(consoleBox).toBeVisible();
+
+  await toggle.click();
+  await expect(consoleBox).toBeHidden();
+
+  // expande de novo: o conteúdo continua lá
+  await toggle.click();
+  await expect(consoleBox).toBeVisible();
+  await expect(consoleBox).toContainText('Concluído com sucesso');
+});
+
+test('estado dos containers do projeto compose atualiza em tempo real', async () => {
+  test.setTimeout(120_000);
+  const card = page.getByTestId(`compose-${COMPOSE_PROJECT_DIR_NAME}`);
+  await expect(card).toContainText('2/2 rodando', { timeout: 30_000 });
+
+  // para um serviço por fora do DockDesk: o card deve refletir sozinho,
+  // sem clicar em Atualizar
+  const webName = sh(
+    `docker ps --filter label=com.docker.compose.project=${COMPOSE_PROJECT_DIR_NAME} --filter label=com.docker.compose.service=web --format '{{.Names}}'`
+  );
+  sh(`docker stop -t 2 ${webName}`);
+  await expect(card).toContainText('1/2 rodando', { timeout: 30_000 });
+
+  sh(`docker start ${webName}`);
+  await expect(card).toContainText('2/2 rodando', { timeout: 30_000 });
+});
+
 test('mostra volumes agrupados pelo projeto compose', async () => {
   await page.getByTestId('nav-volumes').click();
   await expect(page.getByTestId('volumes-view')).toBeVisible();
@@ -381,6 +429,25 @@ test('estado aberto/recolhido dos grupos persiste ao trocar de tela', async () =
       .getByTestId(`group-${COMPOSE_PROJECT_DIR_NAME}`)
       .locator(`[data-testid^="container-${COMPOSE_PROJECT_DIR_NAME}-web"]`)
   ).toHaveCount(0);
+});
+
+test('desliga e liga todos os containers do grupo pelo cabeçalho', async () => {
+  test.setTimeout(120_000);
+  const group = page.getByTestId(`group-${COMPOSE_PROJECT_DIR_NAME}`);
+  await expect(group).toContainText('2/2 rodando', { timeout: 20_000 });
+
+  // os botões ficam no cabeçalho do grupo, mesmo com ele recolhido
+  await page.getByTestId(`group-stop-all-${COMPOSE_PROJECT_DIR_NAME}`).click();
+  await expect(group).toContainText('0/2 rodando', { timeout: 60_000 });
+  const running = sh(
+    `docker ps --filter label=com.docker.compose.project=${COMPOSE_PROJECT_DIR_NAME} --format '{{.Names}}' || true`
+  );
+  expect(running.trim()).toBe('');
+  await expect(page.getByTestId(`group-stop-all-${COMPOSE_PROJECT_DIR_NAME}`)).toHaveCount(0);
+
+  await page.getByTestId(`group-start-all-${COMPOSE_PROJECT_DIR_NAME}`).click();
+  await expect(group).toContainText('2/2 rodando', { timeout: 60_000 });
+  await expect(page.getByTestId(`group-start-all-${COMPOSE_PROJECT_DIR_NAME}`)).toHaveCount(0);
 });
 
 test('reordena grupos arrastando e a ordem fica salva', async () => {
