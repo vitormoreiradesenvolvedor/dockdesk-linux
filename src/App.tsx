@@ -109,7 +109,7 @@ function AppShell() {
             notify={notify}
           />
         )}
-        {view === 'compose' && <ComposeView notify={notify} />}
+        {view === 'compose' && <ComposeView containers={containers} notify={notify} />}
         {view === 'images' && <ImagesView notify={notify} />}
         {view === 'volumes' && <VolumesView notify={notify} />}
         {view === 'networks' && <NetworksView notify={notify} />}
