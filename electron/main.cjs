@@ -39,12 +39,20 @@ function configPath() {
   return path.join(app.getPath('userData'), 'dockdesk-config.json');
 }
 
+const CONFIG_DEFAULTS = {
+  composeFolders: [],
+  routines: {},
+  autostart: false,
+  startHidden: false,
+  trayEnabled: true,
+};
+
 function loadConfig() {
   try {
     const config = JSON.parse(fs.readFileSync(configPath(), 'utf8'));
-    return { composeFolders: [], routines: {}, ...config };
+    return { ...CONFIG_DEFAULTS, ...config };
   } catch (_) {
-    return { composeFolders: [], routines: {}, autostart: false, startHidden: false };
+    return { ...CONFIG_DEFAULTS };
   }
 }
 
@@ -194,6 +202,7 @@ function rebuildTrayMenu() {
 }
 
 function createTray() {
+  if (tray) return;
   try {
     const image = nativeImage.createFromPath(TRAY_ICON_PATH);
     tray = new Tray(image);
@@ -206,10 +215,20 @@ function createTray() {
   }
 }
 
+function destroyTray() {
+  if (!tray) return;
+  tray.destroy();
+  tray = null;
+}
+
 // ---------- Janela ----------
 
 function createWindow() {
-  const startHidden = process.argv.includes('--hidden') || loadConfig().startHidden;
+  const config = loadConfig();
+  // iniciar oculto só faz sentido com o ícone na bandeja: sem tray não haveria
+  // como reabrir a janela
+  const startHidden =
+    (process.argv.includes('--hidden') || config.startHidden) && config.trayEnabled !== false;
   mainWindow = new BrowserWindow({
     width: 1360,
     height: 860,
@@ -312,6 +331,18 @@ ipcMain.handle('settings:setLang', (_e, lang) => {
   return true;
 });
 
+ipcMain.handle('settings:getTrayEnabled', () => loadConfig().trayEnabled !== false);
+
+ipcMain.handle('settings:setTrayEnabled', (_e, enabled) => {
+  const config = loadConfig();
+  config.trayEnabled = !!enabled;
+  saveConfig(config);
+  // sem tray, fechar a janela encerra o app (o handler de close depende de `tray`)
+  if (config.trayEnabled) createTray();
+  else destroyTray();
+  return config.trayEnabled;
+});
+
 // ---------- IPC: rotinas ----------
 
 ipcMain.handle('routines:list', (_e, key) => loadConfig().routines[key] || []);
@@ -386,7 +417,7 @@ ipcMain.handle('compose:run', async (event, file, action) => {
 // ---------- Ciclo de vida ----------
 
 app.whenReady().then(() => {
-  createTray();
+  if (loadConfig().trayEnabled !== false) createTray();
   createWindow();
 });
 

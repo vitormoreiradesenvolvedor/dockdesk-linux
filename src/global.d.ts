@@ -9,6 +9,7 @@ export interface ContainerSummary {
   ports: { public: number | null; private: number; type: string }[];
   composeProject: string | null;
   composeService: string | null;
+  composeWorkingDir: string | null;
 }
 
 export interface ContainerStats {
@@ -150,6 +151,8 @@ export interface DockDeskApi {
   };
   settings: {
     setLang: (lang: string) => Promise<boolean>;
+    getTrayEnabled: () => Promise<boolean>;
+    setTrayEnabled: (enabled: boolean) => Promise<boolean>;
   };
   compose: {
     folders: () => Promise<string[]>;

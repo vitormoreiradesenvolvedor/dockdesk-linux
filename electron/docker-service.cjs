@@ -47,6 +47,8 @@ async function listContainers() {
     ports: simplifyPorts(c.Ports),
     composeProject: (c.Labels && c.Labels['com.docker.compose.project']) || null,
     composeService: (c.Labels && c.Labels['com.docker.compose.service']) || null,
+    composeWorkingDir:
+      (c.Labels && c.Labels['com.docker.compose.project.working_dir']) || null,
   }));
 }
 

@@ -55,6 +55,8 @@ contextBridge.exposeInMainWorld('dockdesk', {
   },
   settings: {
     setLang: (lang) => ipcRenderer.invoke('settings:setLang', lang),
+    getTrayEnabled: () => ipcRenderer.invoke('settings:getTrayEnabled'),
+    setTrayEnabled: (enabled) => ipcRenderer.invoke('settings:setTrayEnabled', enabled),
   },
   compose: {
     folders: () => ipcRenderer.invoke('compose:folders'),
