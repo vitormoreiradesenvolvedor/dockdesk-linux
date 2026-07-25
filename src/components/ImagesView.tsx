@@ -19,9 +19,10 @@ const LOOSE = '__loose__';
 
 interface Props {
   notify: (text: string, kind?: 'error' | 'info') => void;
+  privacyProject: string | null;
 }
 
-export function ImagesView({ notify }: Props) {
+export function ImagesView({ notify, privacyProject }: Props) {
   const { t } = useI18n();
   const [images, setImages] = useState<ImageSummary[] | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
@@ -58,8 +59,12 @@ export function ImagesView({ notify }: Props) {
     }
   }
 
+  const visible = privacyProject
+    ? (images ?? []).filter((img) => img.project === privacyProject)
+    : (images ?? []);
+
   const groups = new Map<string, ImageSummary[]>();
-  for (const img of images ?? []) {
+  for (const img of visible) {
     const key = img.project ?? LOOSE;
     const list = groups.get(key) ?? [];
     list.push(img);
@@ -83,7 +88,7 @@ export function ImagesView({ notify }: Props) {
         <div className="empty-state">
           <Loader2 size={36} className="spin" />
         </div>
-      ) : images.length === 0 ? (
+      ) : visible.length === 0 ? (
         <div className="empty-state">
           <HardDrive size={44} />
           <h3>{t('images_empty_title')}</h3>

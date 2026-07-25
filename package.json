@@ -1,7 +1,7 @@
 {
   "name": "dockdesk",
   "productName": "DockDesk",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Interface gráfica amigável para gerenciamento de containers Docker no Linux",
   "license": "MIT",
   "author": "Vitor Moreira <vitormoreiradesenvolvedor@gmail.com>",
