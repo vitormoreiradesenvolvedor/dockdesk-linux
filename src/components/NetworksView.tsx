@@ -19,9 +19,10 @@ const LOOSE = '__loose__';
 
 interface Props {
   notify: (text: string, kind?: 'error' | 'info') => void;
+  privacyProject: string | null;
 }
 
-export function NetworksView({ notify }: Props) {
+export function NetworksView({ notify, privacyProject }: Props) {
   const { t } = useI18n();
   const [networks, setNetworks] = useState<NetworkSummary[] | null>(null);
   const collapsed = useCollapsedGroups('networks');
@@ -58,8 +59,12 @@ export function NetworksView({ notify }: Props) {
     }
   }
 
+  const visible = privacyProject
+    ? (networks ?? []).filter((n) => n.project === privacyProject)
+    : (networks ?? []);
+
   const groups = new Map<string, NetworkSummary[]>();
-  for (const n of networks ?? []) {
+  for (const n of visible) {
     const key = n.project ?? LOOSE;
     const list = groups.get(key) ?? [];
     list.push(n);

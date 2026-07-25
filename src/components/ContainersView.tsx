@@ -25,9 +25,10 @@ interface Props {
   stats: Record<string, ContainerStats>;
   onRefresh: () => Promise<void>;
   notify: (text: string, kind?: 'error' | 'info') => void;
+  privacyProject: string | null;
 }
 
-export function ContainersView({ containers, stats, onRefresh, notify }: Props) {
+export function ContainersView({ containers, stats, onRefresh, notify, privacyProject }: Props) {
   const { t } = useI18n();
   const [filter, setFilter] = useState('');
   const [selected, setSelected] = useState<ContainerSummary | null>(null);
@@ -40,8 +41,10 @@ export function ContainersView({ containers, stats, onRefresh, notify }: Props) 
 
   const filtered = containers.filter(
     (c) =>
-      c.name.toLowerCase().includes(filter.toLowerCase()) ||
-      c.image.toLowerCase().includes(filter.toLowerCase())
+      // modo privacidade: só o projeto selecionado
+      (!privacyProject || c.composeProject === privacyProject) &&
+      (c.name.toLowerCase().includes(filter.toLowerCase()) ||
+        c.image.toLowerCase().includes(filter.toLowerCase()))
   );
 
   // agrupa por projeto compose (labels do Docker — vale para projetos que

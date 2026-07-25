@@ -20,6 +20,7 @@ import { useGroupOrder } from '../hooks/useGroupOrder';
 interface Props {
   containers: ContainerSummary[];
   notify: (text: string, kind?: 'error' | 'info') => void;
+  privacyProject: string | null;
 }
 
 // o Docker Compose normaliza o nome do projeto (pasta): minúsculas e só
@@ -28,7 +29,7 @@ function normalizeProjectName(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9_-]/g, '');
 }
 
-export function ComposeView({ containers, notify }: Props) {
+export function ComposeView({ containers, notify, privacyProject }: Props) {
   const { t } = useI18n();
   const [folders, setFolders] = useState<string[]>([]);
   const [projects, setProjects] = useState<ComposeProject[] | null>(null);
@@ -142,6 +143,9 @@ export function ComposeView({ containers, notify }: Props) {
         .sortKeys(projects.map((p) => p.file))
         .map((file) => projects.find((p) => p.file === file)!)
         .filter(Boolean)
+        // modo privacidade: só o projeto selecionado (nome normalizado casa com
+        // o label composeProject dos containers)
+        .filter((p) => !privacyProject || normalizeProjectName(p.name) === privacyProject)
     : null;
 
   return (
@@ -162,7 +166,7 @@ export function ComposeView({ containers, notify }: Props) {
         </div>
       </div>
 
-      {folders.length > 0 && (
+      {folders.length > 0 && !privacyProject && (
         <div className="folder-bar" data-testid="folder-bar">
           {folders.map((f) => (
             <span key={f} className="folder-chip">
