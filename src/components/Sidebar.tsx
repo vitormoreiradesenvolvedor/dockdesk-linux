@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Boxes, Layers, HardDrive, Database, Network, Sun, Moon, Globe } from 'lucide-react';
+import { Boxes, Layers, HardDrive, Database, Network, Sun, Moon, Globe, Eye, EyeOff } from 'lucide-react';
 import { useI18n, LANGS, type Lang } from '../i18n';
 import type { Theme } from '../hooks/useTheme';
 
@@ -13,6 +13,11 @@ interface Props {
   totalCount: number;
   theme: Theme;
   onToggleTheme: () => void;
+  projects: string[];
+  privacyActive: boolean;
+  privacyProject: string | null;
+  onTogglePrivacy: (active: boolean) => void;
+  onSelectPrivacyProject: (project: string | null) => void;
 }
 
 export function Sidebar({
@@ -23,6 +28,11 @@ export function Sidebar({
   totalCount,
   theme,
   onToggleTheme,
+  projects,
+  privacyActive,
+  privacyProject,
+  onTogglePrivacy,
+  onSelectPrivacyProject,
 }: Props) {
   const { t, lang, setLang } = useI18n();
   const [trayEnabled, setTrayEnabled] = useState(true);
@@ -40,6 +50,21 @@ export function Sidebar({
     setTrayEnabled(next);
     await window.dockdesk.settings.setTrayEnabled(next);
   }
+
+  function togglePrivacy() {
+    const next = !privacyActive;
+    // ligar sem projeto escolhido: assume o primeiro disponível
+    if (next && !privacyProject && projects.length > 0) {
+      onSelectPrivacyProject(projects[0]);
+    }
+    onTogglePrivacy(next);
+  }
+
+  // mantém o projeto selecionado como opção mesmo se ele sumir da lista viva
+  const projectOptions =
+    privacyProject && !projects.includes(privacyProject)
+      ? [privacyProject, ...projects]
+      : projects;
 
   const items: { key: ViewName; icon: typeof Boxes; label: string; badge?: string }[] = [
     {
@@ -74,6 +99,32 @@ export function Sidebar({
           {badge && <span className="nav-badge">{badge}</span>}
         </button>
       ))}
+
+      <div className={`privacy-box ${privacyActive ? 'on' : ''}`} data-testid="privacy-box">
+        <button
+          className={`privacy-toggle ${privacyActive ? 'on' : ''}`}
+          onClick={togglePrivacy}
+          title={t('privacy_hint')}
+          data-testid="privacy-toggle"
+        >
+          {privacyActive ? <Eye size={14} /> : <EyeOff size={14} />}
+          {t('privacy_mode')}
+        </button>
+        <select
+          className="privacy-select"
+          value={privacyProject ?? ''}
+          onChange={(e) => onSelectPrivacyProject(e.target.value || null)}
+          disabled={projects.length === 0 && !privacyProject}
+          data-testid="privacy-select"
+        >
+          <option value="">{t('privacy_pick')}</option>
+          {projectOptions.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div className="sidebar-settings">
         <button

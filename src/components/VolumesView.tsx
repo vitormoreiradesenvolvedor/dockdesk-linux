@@ -18,9 +18,10 @@ const LOOSE = '__loose__';
 
 interface Props {
   notify: (text: string, kind?: 'error' | 'info') => void;
+  privacyProject: string | null;
 }
 
-export function VolumesView({ notify }: Props) {
+export function VolumesView({ notify, privacyProject }: Props) {
   const { t } = useI18n();
   const [volumes, setVolumes] = useState<VolumeSummary[] | null>(null);
   const collapsed = useCollapsedGroups('volumes');
@@ -57,8 +58,12 @@ export function VolumesView({ notify }: Props) {
     }
   }
 
+  const visible = privacyProject
+    ? (volumes ?? []).filter((v) => v.project === privacyProject)
+    : (volumes ?? []);
+
   const groups = new Map<string, VolumeSummary[]>();
-  for (const v of volumes ?? []) {
+  for (const v of visible) {
     const key = v.project ?? LOOSE;
     const list = groups.get(key) ?? [];
     list.push(v);
@@ -82,7 +87,7 @@ export function VolumesView({ notify }: Props) {
         <div className="empty-state">
           <Loader2 size={36} className="spin" />
         </div>
-      ) : volumes.length === 0 ? (
+      ) : visible.length === 0 ? (
         <div className="empty-state">
           <Database size={44} />
           <h3>{t('volumes_empty_title')}</h3>

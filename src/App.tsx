@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Eye } from 'lucide-react';
 import type { ContainerStats, ContainerSummary } from './global';
 import { Sidebar, type ViewName } from './components/Sidebar';
 import { ContainersView } from './components/ContainersView';
@@ -6,8 +7,9 @@ import { ComposeView } from './components/ComposeView';
 import { ImagesView } from './components/ImagesView';
 import { VolumesView } from './components/VolumesView';
 import { NetworksView } from './components/NetworksView';
-import { I18nProvider } from './i18n';
+import { I18nProvider, useI18n } from './i18n';
 import { useTheme } from './hooks/useTheme';
+import { usePrivacyMode } from './hooks/usePrivacyMode';
 
 interface Toast {
   id: number;
@@ -26,8 +28,10 @@ export default function App() {
 }
 
 function AppShell() {
+  const { t } = useI18n();
   const [view, setView] = useState<ViewName>('containers');
   const { theme, toggleTheme } = useTheme();
+  const privacy = usePrivacyMode();
   const [engine, setEngine] = useState<{ ok: boolean; version?: string; error?: string }>({
     ok: false,
   });
@@ -89,30 +93,61 @@ function AppShell() {
     };
   }, []);
 
+  // projetos Compose disponíveis (derivados dos containers que o app já
+  // monitora) — alimentam o seletor do modo privacidade
+  const projects = [...new Set(containers.map((c) => c.composeProject).filter(Boolean))].sort() as string[];
+
+  // com o modo privacidade ativo, os contadores da barra também refletem
+  // apenas o projeto escolhido para não vazar a contagem dos demais
+  const counted = privacy.project
+    ? containers.filter((c) => c.composeProject === privacy.project)
+    : containers;
+
   return (
     <div className="app">
       <Sidebar
         view={view}
         onNavigate={setView}
         engine={engine}
-        runningCount={containers.filter((c) => c.state === 'running').length}
-        totalCount={containers.length}
+        runningCount={counted.filter((c) => c.state === 'running').length}
+        totalCount={counted.length}
         theme={theme}
         onToggleTheme={toggleTheme}
+        projects={projects}
+        privacyActive={privacy.active}
+        privacyProject={privacy.selected}
+        onTogglePrivacy={privacy.setActive}
+        onSelectPrivacyProject={privacy.setProject}
       />
       <main className="main">
+        {privacy.project && (
+          <div className="privacy-banner" data-testid="privacy-banner">
+            <Eye size={14} />
+            {t('privacy_banner', { project: privacy.project })}
+            <button
+              className="privacy-banner-off"
+              onClick={() => privacy.setActive(false)}
+              data-testid="privacy-banner-off"
+            >
+              {t('privacy_exit')}
+            </button>
+          </div>
+        )}
         {view === 'containers' && (
           <ContainersView
             containers={containers}
             stats={stats}
             onRefresh={refreshContainers}
             notify={notify}
+            privacyProject={privacy.project}
           />
         )}
-        {view === 'compose' && <ComposeView containers={containers} notify={notify} />}
-        {view === 'images' && <ImagesView notify={notify} />}
-        {view === 'volumes' && <VolumesView notify={notify} />}
-        {view === 'networks' && <NetworksView notify={notify} />}
+        {view === 'compose' && (
+          <ComposeView containers={containers} notify={notify} privacyProject={privacy.project} />
+        )}
+        {view === 'images' && <ImagesView notify={notify} privacyProject={privacy.project} />}
+        {view === 'volumes' && <VolumesView notify={notify} privacyProject={privacy.project} />}
+        {view === 'networks' && <NetworksView notify={notify} privacyProject={privacy.project} />}
       </main>
       <div className="toast-stack">
         {toasts.map((t) => (
