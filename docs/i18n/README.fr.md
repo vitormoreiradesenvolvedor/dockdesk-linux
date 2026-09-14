@@ -34,6 +34,8 @@ DockDesk existe pour ce public : **ceux qui développent sur des projets utilisa
 ### Routines (raccourcis par conteneur)
 - Créez des boutons comme `htop`, `npm run dev` ou `composer install` ;
 - **Routines partielles** : la commande fixe (ex. : `cd /home/projet`) demande son complément à l'exécution (ex. : `&& npm install`) ;
+- **Marqueur `[--]`** : écrivez `[--]` dans la commande pour indiquer **où** le complément entre, et pas seulement à la fin — le texte saisi remplit **tous** les marqueurs (ex. : `cd /app/[--] && npm run [--]`) ;
+- **Le nom et la commande se replient tout seuls** quand ils sont longs, et les sauts de ligne que vous tapez (Entrée) sont respectés à l'exécution ;
 - Chaque routine tourne dans **son propre terminal attaché à sa ligne**, visible tant que le processus vit (parfait pour `npm run dev`), avec **indicateur d'exécution**, réduction et bouton d'arrêt ;
 - Sauvegardées par nom de conteneur : elles survivent aux recréations.
 
