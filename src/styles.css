@@ -697,14 +697,6 @@ button { font-family: inherit; }
   color: var(--text);
 }
 
-/* exceção: o campo do complemento fica sobre o console escuro, então o
-   texto é sempre claro, em qualquer tema */
-.complement-preview .exec-input,
-:root[data-theme='light'] .complement-preview .exec-input {
-  background: transparent;
-  color: #e6edf3;
-}
-
 .exec-output {
   flex: 1;
   background: #0a0e14;
@@ -999,17 +991,42 @@ button { font-family: inherit; }
   font-size: 13.5px;
   display: flex;
   align-items: center;
+  /* nome comprido desce para a linha de baixo em vez de espremer os selos */
+  flex-wrap: wrap;
   gap: 8px;
+  line-height: 1.4;
 }
 
+/* quebra automatica do nome: parte por palavra e, se uma palavra sozinha nao
+   couber (caminho longo, nome_sem_espaco), parte dentro dela mesma */
+.routine-label-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* o comando mostra as quebras digitadas (pre-wrap) e quebra sozinho o que
+   passar da largura do cartao: nada fica escondido atras de reticencias */
 .routine-cmd {
   display: block;
   font-family: var(--mono);
   font-size: 12px;
   color: var(--text-dim);
   margin-top: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+/* marcador [--]: onde o complemento entra na hora de executar */
+.cmd-slot {
+  font-family: var(--mono);
+  color: var(--accent-2);
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  border-radius: 4px;
+  padding: 0 3px;
   white-space: nowrap;
 }
 
@@ -1060,22 +1077,62 @@ button { font-family: inherit; }
 
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 
+/* previa do comando final: rola no maximo, mas quebra a linha antes disso */
 .complement-preview {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   background: #0a0e14;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 14px;
+  max-height: 160px;
+  overflow-y: auto;
 }
-.complement-preview > code {
+.complement-code {
+  display: block;
   font-family: var(--mono);
   font-size: 13px;
   color: var(--accent-2);
-  white-space: nowrap;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.55;
 }
-.complement-preview .exec-input { border: none; background: transparent; padding: 4px 0; flex: 1; }
+
+/* campo que cresce com o texto: sem barra de rolagem ate bater no teto e sem
+   alca de redimensionar, que brigaria com a altura calculada no JS */
+.exec-input.auto-grow {
+  resize: none;
+  overflow-y: auto;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-height: 38px;
+}
+
+/* caixa de dica do editor de rotinas */
+.routine-tips {
+  display: flex;
+  gap: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-left: 3px solid var(--accent-2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-dim);
+  line-height: 1.55;
+}
+.routine-tips > svg { color: var(--accent-2); flex-shrink: 0; margin-top: 2px; }
+.routine-tips p { margin: 0; }
+.routine-tips p + p { margin-top: 6px; }
+.routine-tip-sample code {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.checkbox-row input:disabled { cursor: default; opacity: 0.75; }
 
 /* ---------- Vazio / toasts ---------- */
 
