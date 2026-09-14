@@ -1,4 +1,11 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 import {
   Play,
   Plus,
@@ -6,6 +13,7 @@ import {
   Trash2,
   ListChecks,
   Loader2,
+  Lightbulb,
   Square,
   X,
   ChevronDown,
@@ -13,6 +21,14 @@ import {
 import type { ContainerSummary, Routine } from '../global';
 import { useI18n } from '../i18n';
 import { InlineTerminal } from './InlineTerminal';
+import {
+  ROUTINE_PLACEHOLDER,
+  buildRoutineCommand,
+  hasCommandPlaceholder,
+  isPartialRoutine,
+  normalizeCommand,
+  normalizeLabel,
+} from '../utils';
 
 interface Session {
   command: string;
@@ -61,10 +77,12 @@ export function RoutinesPane({ container, notify }: Props) {
 
   function run(routine: Routine) {
     if (sessions[routine.id] && !sessions[routine.id].exited) return; // já rodando
-    if (routine.partial) {
+    if (isPartialRoutine(routine)) {
       setComplementFor(routine);
     } else {
-      start(routine, routine.command);
+      // normaliza na saída: o comando vai ao sh -c com as quebras que a pessoa
+      // digitou, sem nada que a quebra automática da tela tenha sugerido
+      start(routine, normalizeCommand(routine.command));
     }
   }
 
@@ -108,6 +126,8 @@ export function RoutinesPane({ container, notify }: Props) {
           {routines.map((r) => {
             const session = sessions[r.id];
             const isRunning = !!session && !session.exited;
+            const inline = hasCommandPlaceholder(r.command);
+            const partial = isPartialRoutine(r);
             return (
               <div
                 key={r.id}
@@ -122,19 +142,24 @@ export function RoutinesPane({ container, notify }: Props) {
                     title={
                       isRunning
                         ? t('routine_running')
-                        : r.partial
-                          ? t('routine_run_partial')
-                          : t('routine_run')
+                        : inline
+                          ? t('routine_run_inline')
+                          : partial
+                            ? t('routine_run_partial')
+                            : t('routine_run')
                     }
                   >
                     {isRunning ? <Loader2 size={15} className="spin" /> : <Play size={15} />}
                   </button>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="routine-label">
-                      {r.label}
-                      {r.partial && (
-                        <span className="compose-tag" title={t('routine_run_partial')}>
-                          {t('routines_partial_badge')}
+                      <span className="routine-label-text">{r.label}</span>
+                      {partial && (
+                        <span
+                          className="compose-tag"
+                          title={inline ? t('routine_run_inline') : t('routine_run_partial')}
+                        >
+                          {inline ? t('routines_inline_badge') : t('routines_partial_badge')}
                         </span>
                       )}
                       {isRunning && (
@@ -146,10 +171,11 @@ export function RoutinesPane({ container, notify }: Props) {
                         </span>
                       )}
                     </div>
-                    <code className="routine-cmd">
-                      {session ? session.command : r.command}
-                      {!session && r.partial ? ' …' : ''}
-                    </code>
+                    <CommandText
+                      className="routine-cmd"
+                      text={session ? session.command : r.command}
+                      suffix={!session && partial && !inline ? ' …' : ''}
+                    />
                   </div>
                   {session && (
                     <button
@@ -259,12 +285,95 @@ export function RoutinesPane({ container, notify }: Props) {
           routine={complementFor}
           onCancel={() => setComplementFor(null)}
           onRun={(complement) => {
-            start(complementFor, `${complementFor.command} ${complement}`.trim());
+            start(complementFor, buildRoutineCommand(complementFor.command, complement));
             setComplementFor(null);
           }}
         />
       )}
     </div>
+  );
+}
+
+/**
+ * Comando renderizado com quebra automática: `pre-wrap` preserva as quebras
+ * digitadas e a CSS quebra sozinha o que passar da largura. O marcador [--]
+ * ganha destaque para ficar claro onde o complemento vai entrar.
+ */
+function CommandText({
+  text,
+  className,
+  suffix = '',
+}: {
+  text: string;
+  className: string;
+  suffix?: string;
+}) {
+  const parts = text.split(ROUTINE_PLACEHOLDER);
+  return (
+    <code className={className}>
+      {parts.map((part, i) => (
+        <Fragment key={i}>
+          {i > 0 && <span className="cmd-slot">{ROUTINE_PLACEHOLDER}</span>}
+          {part}
+        </Fragment>
+      ))}
+      {suffix}
+    </code>
+  );
+}
+
+/**
+ * Campo de texto que cresce junto com o conteúdo, então nome e comando longos
+ * quebram a linha e continuam visíveis inteiros. Enter quebra a linha;
+ * Ctrl/Cmd+Enter envia o formulário.
+ */
+function AutoTextarea({
+  value,
+  onChange,
+  onSubmit,
+  placeholder,
+  testId,
+  autoFocus,
+  className = 'exec-input',
+  maxHeight = 180,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit?: () => void;
+  placeholder?: string;
+  testId?: string;
+  autoFocus?: boolean;
+  className?: string;
+  maxHeight?: number;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  // remede a altura a cada mudança: some com a barra de rolagem até o teto
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
+  }, [value, maxHeight]);
+
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      className={`${className} auto-grow`}
+      value={value}
+      placeholder={placeholder}
+      data-testid={testId}
+      autoFocus={autoFocus}
+      spellCheck={false}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          onSubmit?.();
+        }
+      }}
+    />
   );
 }
 
@@ -282,14 +391,21 @@ function RoutineEditor({
   const [command, setCommand] = useState(routine?.command ?? '');
   const [partial, setPartial] = useState(routine?.partial ?? false);
 
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    if (!label.trim() || !command.trim()) return;
+  // com [--] no comando a rotina já é parcial por definição: o complemento
+  // precisa de um lugar para entrar
+  const usesPlaceholder = hasCommandPlaceholder(command);
+  const cleanLabel = normalizeLabel(label);
+  const cleanCommand = normalizeCommand(command);
+  const canSave = !!cleanLabel && !!cleanCommand;
+
+  function submit(e?: FormEvent) {
+    e?.preventDefault();
+    if (!canSave) return;
     onSave({
       id: routine?.id ?? `rt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      label: label.trim(),
-      command: command.trim(),
-      partial,
+      label: cleanLabel,
+      command: cleanCommand,
+      partial: partial || usesPlaceholder,
     });
   }
 
@@ -298,34 +414,56 @@ function RoutineEditor({
       <form onSubmit={submit} className="modal-form" data-testid="routine-editor">
         <label>
           {t('routine_name_label')}
-          <input
-            className="exec-input"
+          <AutoTextarea
             value={label}
-            onChange={(e) => setLabel(e.target.value)}
+            onChange={setLabel}
+            onSubmit={submit}
             placeholder={t('routine_name_ph')}
-            data-testid="routine-label-input"
+            testId="routine-label-input"
+            maxHeight={90}
             autoFocus
           />
         </label>
         <label>
           {t('routine_cmd_label')}
-          <input
-            className="exec-input"
+          <AutoTextarea
             value={command}
-            onChange={(e) => setCommand(e.target.value)}
+            onChange={setCommand}
+            onSubmit={submit}
             placeholder={t('routine_cmd_ph')}
-            data-testid="routine-command-input"
+            testId="routine-command-input"
           />
         </label>
+
+        <div className="routine-tips" data-testid="routine-tips">
+          <Lightbulb size={15} />
+          <div>
+            <p>
+              {t('routine_tip_placeholder_pre')}{' '}
+              <code className="cmd-slot">{ROUTINE_PLACEHOLDER}</code>{' '}
+              {t('routine_tip_placeholder_pos')}
+            </p>
+            <p className="routine-tip-sample">
+              <code>
+                cd /app/<span className="cmd-slot">{ROUTINE_PLACEHOLDER}</span> &amp;&amp; npm run{' '}
+                <span className="cmd-slot">{ROUTINE_PLACEHOLDER}</span>
+              </code>
+            </p>
+            <p>{t('routine_tip_multiline')}</p>
+          </div>
+        </div>
+
         <label className="checkbox-row">
           <input
             type="checkbox"
-            checked={partial}
+            checked={partial || usesPlaceholder}
+            disabled={usesPlaceholder}
             onChange={(e) => setPartial(e.target.checked)}
             data-testid="routine-partial-check"
           />
-          {t('routine_partial_label')}
+          {usesPlaceholder ? t('routine_partial_locked_label') : t('routine_partial_label')}
         </label>
+
         <div className="modal-actions">
           <button type="button" className="btn" onClick={onCancel}>
             {t('cancel')}
@@ -333,7 +471,7 @@ function RoutineEditor({
           <button
             type="submit"
             className="btn primary"
-            disabled={!label.trim() || !command.trim()}
+            disabled={!canSave}
             data-testid="routine-save"
           >
             {t('save')}
@@ -355,9 +493,16 @@ function ComplementModal({
 }) {
   const { t } = useI18n();
   const [complement, setComplement] = useState('');
+  const inline = hasCommandPlaceholder(routine.command);
 
-  function submit(e: FormEvent) {
-    e.preventDefault();
+  // com o campo vazio o preview ainda mostra o marcador, então dá para ver
+  // exatamente em quantos lugares o complemento vai entrar
+  const preview = complement.trim()
+    ? buildRoutineCommand(routine.command, complement)
+    : normalizeCommand(routine.command);
+
+  function submit(e?: FormEvent) {
+    e?.preventDefault();
     onRun(complement);
   }
 
@@ -365,18 +510,21 @@ function ComplementModal({
     <Modal title={t('complement_title', { label: routine.label })} onClose={onCancel}>
       <form onSubmit={submit} className="modal-form" data-testid="complement-modal">
         <p className="term-hint" style={{ margin: 0 }}>
-          {t('complement_hint')}
+          {inline ? t('complement_inline_hint') : t('complement_hint')}
         </p>
-        <div className="complement-preview">
-          <code>{routine.command}</code>{' '}
-          <input
-            className="exec-input"
+        <label>
+          {inline ? t('complement_inline_label') : t('complement_label')}
+          <AutoTextarea
             value={complement}
-            onChange={(e) => setComplement(e.target.value)}
-            placeholder="&& npm install"
-            data-testid="complement-input"
+            onChange={setComplement}
+            onSubmit={submit}
+            placeholder={inline ? t('complement_inline_ph') : '&& npm install'}
+            testId="complement-input"
             autoFocus
           />
+        </label>
+        <div className="complement-preview" data-testid="complement-preview">
+          <CommandText className="complement-code" text={preview} />
         </div>
         <div className="modal-actions">
           <button type="button" className="btn" onClick={onCancel}>

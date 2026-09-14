@@ -241,6 +241,66 @@ test('executa rotina parcial pedindo complemento em modal', async () => {
   await expect(page.getByTestId('routine-Preparar')).toContainText('complementável');
 });
 
+test('rotina com marcador [--] insere o complemento em cada marcador', async () => {
+  await page.getByTestId('routine-new').click();
+  await page.getByTestId('routine-label-input').fill('Marcador');
+  // duas ocorrências: o complemento tem de entrar nas duas
+  await page
+    .getByTestId('routine-command-input')
+    .fill('echo alvo-[--] && echo eco-[--]');
+
+  // o marcador liga o modo parcial sozinho e trava o checkbox
+  const partialCheck = page.getByTestId('routine-partial-check');
+  await expect(partialCheck).toBeChecked();
+  await expect(partialCheck).toBeDisabled();
+  await expect(page.getByTestId('routine-tips')).toBeVisible();
+  await page.getByTestId('routine-save').click();
+
+  await expect(page.getByTestId('routine-Marcador')).toContainText('marcador [--]');
+
+  await page.getByTestId('routine-run-Marcador').click();
+  await expect(page.getByTestId('complement-modal')).toBeVisible();
+  // com o campo vazio a prévia ainda mostra onde o complemento vai entrar
+  await expect(page.getByTestId('complement-preview')).toContainText('echo alvo-[--]');
+  await page.getByTestId('complement-input').fill('999');
+  await expect(page.getByTestId('complement-preview')).toContainText(
+    'echo alvo-999 && echo eco-999'
+  );
+  await page.getByTestId('complement-run').click();
+
+  const term = page.getByTestId('routine-terminal-Marcador');
+  await expect(term.locator('.xterm-rows')).toContainText('alvo-999', { timeout: 20_000 });
+  await expect(term.locator('.xterm-rows')).toContainText('eco-999', { timeout: 20_000 });
+  await expect(page.getByTestId('routine-close-Marcador')).toBeVisible({ timeout: 20_000 });
+  await page.getByTestId('routine-close-Marcador').click();
+});
+
+test('rotina multilinha preserva a quebra de linha na execução', async () => {
+  await page.getByTestId('routine-new').click();
+  await page.getByTestId('routine-label-input').fill('Multilinha');
+  // duas linhas de verdade: o sh -c tem de executar as duas
+  await page
+    .getByTestId('routine-command-input')
+    .fill('echo primeira-linha-111\necho segunda-linha-222');
+  await page.getByTestId('routine-save').click();
+
+  // o comando aparece na lista quebrado nas mesmas duas linhas
+  await expect(page.getByTestId('routine-Multilinha').locator('.routine-cmd')).toContainText(
+    'echo segunda-linha-222'
+  );
+
+  await page.getByTestId('routine-run-Multilinha').click();
+  const term = page.getByTestId('routine-terminal-Multilinha');
+  await expect(term.locator('.xterm-rows')).toContainText('primeira-linha-111', {
+    timeout: 20_000,
+  });
+  await expect(term.locator('.xterm-rows')).toContainText('segunda-linha-222', {
+    timeout: 20_000,
+  });
+  await expect(page.getByTestId('routine-close-Multilinha')).toBeVisible({ timeout: 20_000 });
+  await page.getByTestId('routine-close-Multilinha').click();
+});
+
 test('para e liga o container pela interface', async () => {
   await page.getByTestId('drawer-stop').click();
   await expect(page.getByTestId(`badge-${FIXTURE_CONTAINER}`)).toHaveText('Parado', {
