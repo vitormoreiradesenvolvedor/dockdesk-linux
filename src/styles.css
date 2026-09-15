@@ -1097,16 +1097,21 @@ button { font-family: inherit; }
   line-height: 1.55;
 }
 
-/* campo que cresce com o texto: sem barra de rolagem ate bater no teto e sem
-   alca de redimensionar, que brigaria com a altura calculada no JS */
+/* campo que cresce com o texto E aceita a alça de redimensionar do canto: a
+   partir da primeira arrastada a altura passa a ser a que a pessoa escolheu e
+   o cálculo automático sai do caminho (ver AutoTextarea) */
 .exec-input.auto-grow {
-  resize: none;
+  /* `.exec-input` traz `flex: 1`; dentro do label (flex column) isso faz o
+     flex-basis mandar na ALTURA e engolir o style.height calculado aqui */
+  flex: none;
+  resize: vertical;
   overflow-y: auto;
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
   min-height: 38px;
+  max-width: 100%;
 }
 
 /* caixa de dica do editor de rotinas */
