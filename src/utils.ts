@@ -51,18 +51,58 @@ export function isPartialRoutine(routine: { command: string; partial: boolean })
   return routine.partial || hasCommandPlaceholder(routine.command);
 }
 
+/** Quantos marcadores [--] o comando tem. */
+export function countCommandPlaceholders(command: string): number {
+  return command.split(ROUTINE_PLACEHOLDER).length - 1;
+}
+
+/**
+ * Valores escritos entre `[-` e `-]` no complemento, na ordem em que aparecem:
+ * `cd [-/home-] && ls [-/root-]` rende `['/home', '/root']`.
+ *
+ * `[\s\S]*?` é preguiçoso e aceita QUALQUER caractere dentro do valor —
+ * espaço, vírgula, ponto, barra, barra invertida, quebra de linha e o próprio
+ * `-`. Preguiçoso é o que faz `[-a-b-]` render `a-b` e `[-foo--]` render `foo-`:
+ * o fechamento é o primeiro `-]` que aparecer daí em diante.
+ *
+ * Retorna null quando não há nenhum `[-…-]`, e aí o complemento é um valor
+ * solto só — o jeito antigo, que preenche todos os marcadores igual.
+ */
+export function extractComplementValues(complement: string): string[] | null {
+  const values = [...complement.matchAll(/\[-([\s\S]*?)-\]/g)].map((m) => m[1]);
+  return values.length ? values : null;
+}
+
 /**
  * Monta o comando final de uma rotina parcial preservando as quebras de linha.
- * Com [--] o complemento entra em CADA marcador; sem marcador ele é anexado ao
- * fim do comando, como sempre foi.
  *
- * Usa split/join em vez de replaceAll porque replaceAll interpreta `$&`, `$'`
- * e afins no texto de substituição — complementos de shell usam `$` à vontade.
+ * Com [--] no comando, o complemento preenche os marcadores na ordem:
+ *   - um valor só (`[-teste-]` ou texto solto) vai para TODOS os marcadores;
+ *   - um `[-valor-]` por marcador dá um texto diferente a cada um;
+ *   - faltando valor, o último se repete nos marcadores restantes.
+ * Só os valores são aproveitados: o texto ao redor deles é ignorado, então o
+ * comando salvo na rotina continua sendo o que manda no que vai rodar.
+ *
+ * Sem marcador, o complemento é anexado ao fim, como sempre foi.
  */
 export function buildRoutineCommand(command: string, complement: string): string {
   const base = normalizeCommand(command);
-  const extra = normalizeCommand(complement);
-  if (hasCommandPlaceholder(base)) return base.split(ROUTINE_PLACEHOLDER).join(extra);
-  if (!extra) return base;
-  return `${base} ${extra}`;
+  if (!hasCommandPlaceholder(base)) {
+    const extra = normalizeCommand(complement);
+    return extra ? `${base} ${extra}` : base;
+  }
+
+  // extrai do texto cru (só CRLF virando LF): espaço e afins dentro do valor
+  // são conteúdo e não podem ser aparados
+  const raw = complement.replace(/\r\n?/g, '\n');
+  const values = extractComplementValues(raw) ?? [normalizeCommand(complement)];
+
+  // split/join manual em vez de replaceAll: replaceAll interpreta `$&`, `$'` e
+  // afins no texto de substituição, e complemento de shell usa `$` à vontade
+  const parts = base.split(ROUTINE_PLACEHOLDER);
+  let out = parts[0];
+  for (let i = 1; i < parts.length; i++) {
+    out += values[Math.min(i - 1, values.length - 1)] + parts[i];
+  }
+  return out;
 }

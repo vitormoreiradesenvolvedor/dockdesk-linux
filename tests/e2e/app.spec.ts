@@ -275,6 +275,54 @@ test('rotina com marcador [--] insere o complemento em cada marcador', async () 
   await page.getByTestId('routine-close-Marcador').click();
 });
 
+test('complemento com [-valor-] preenche cada marcador com um texto diferente', async () => {
+  await page.getByTestId('routine-run-Marcador').click();
+  await expect(page.getByTestId('complement-modal')).toBeVisible();
+
+  // um [-valor-] por marcador, na ordem: cada [--] recebe o seu
+  await page.getByTestId('complement-input').fill('cd [-alfa-] && ls [-beta-]');
+  await expect(page.getByTestId('complement-preview')).toContainText(
+    'echo alvo-alfa && echo eco-beta'
+  );
+
+  // valor com espaço, vírgula, ponto, barra, barra invertida e hífen no meio
+  await page
+    .getByTestId('complement-input')
+    .fill('[-/home/meu dir, v1.2-beta\\x-] [-/root-]');
+  await expect(page.getByTestId('complement-preview')).toContainText(
+    'echo alvo-/home/meu dir, v1.2-beta\\x && echo eco-/root'
+  );
+
+  // valor terminando em hífen: o fechamento é o primeiro -] daí em diante
+  await page.getByTestId('complement-input').fill('[-pre--] [-pos-]');
+  await expect(page.getByTestId('complement-preview')).toContainText(
+    'echo alvo-pre- && echo eco-pos'
+  );
+
+  // faltando valor, o último se repete no marcador restante
+  await page.getByTestId('complement-input').fill('[-so-um-]');
+  await expect(page.getByTestId('complement-preview')).toContainText(
+    'echo alvo-so-um && echo eco-so-um'
+  );
+
+  // atalho preenche o campo com o comando e avisa dos marcadores sem valor
+  await page.getByTestId('complement-fill-each').click();
+  await expect(page.getByTestId('complement-input')).toHaveValue(
+    'echo alvo-[--] && echo eco-[--]'
+  );
+  await expect(page.getByTestId('complement-warn')).toContainText('2');
+
+  await page.getByTestId('complement-input').fill('[-111-] [-222-]');
+  await expect(page.getByTestId('complement-warn')).toHaveCount(0);
+  await page.getByTestId('complement-run').click();
+
+  const term = page.getByTestId('routine-terminal-Marcador');
+  await expect(term.locator('.xterm-rows')).toContainText('alvo-111', { timeout: 20_000 });
+  await expect(term.locator('.xterm-rows')).toContainText('eco-222', { timeout: 20_000 });
+  await expect(page.getByTestId('routine-close-Marcador')).toBeVisible({ timeout: 20_000 });
+  await page.getByTestId('routine-close-Marcador').click();
+});
+
 test('rotina multilinha preserva a quebra de linha na execução', async () => {
   await page.getByTestId('routine-new').click();
   await page.getByTestId('routine-label-input').fill('Multilinha');
