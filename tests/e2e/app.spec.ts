@@ -301,6 +301,38 @@ test('rotina multilinha preserva a quebra de linha na execução', async () => {
   await page.getByTestId('routine-close-Multilinha').click();
 });
 
+test('campos da rotina crescem sozinhos e aceitam a alça de redimensionar', async () => {
+  await page.getByTestId('routine-new').click();
+  const field = page.getByTestId('routine-command-input');
+  await expect(field).toHaveCSS('resize', 'vertical');
+
+  const height = () => field.evaluate((el) => el.getBoundingClientRect().height);
+  const short = await height();
+
+  // texto longo: o campo cresce sozinho para mostrar as linhas quebradas
+  await field.fill(
+    'echo ' + 'palavra-bem-comprida-para-forcar-a-quebra '.repeat(12) + '&& echo fim'
+  );
+  const grown = await height();
+  expect(grown).toBeGreaterThan(short);
+
+  // arrasta a alça do canto: a altura passa a ser a escolhida na mão
+  const box = (await field.boundingBox())!;
+  await page.mouse.move(box.x + box.width - 3, box.y + box.height - 3);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 3, box.y + box.height + 80, { steps: 8 });
+  await page.mouse.up();
+  const dragged = await height();
+  expect(dragged).toBeGreaterThan(grown + 40);
+
+  // e continua sendo dela: digitar de novo não desfaz o arrasto
+  await field.fill('echo curto');
+  expect(await height()).toBeCloseTo(dragged, 0);
+
+  await page.getByTestId('routine-editor').getByText('Cancelar').click();
+  await expect(page.getByTestId('routine-editor')).toHaveCount(0);
+});
+
 test('para e liga o container pela interface', async () => {
   await page.getByTestId('drawer-stop').click();
   await expect(page.getByTestId(`badge-${FIXTURE_CONTAINER}`)).toHaveText('Parado', {

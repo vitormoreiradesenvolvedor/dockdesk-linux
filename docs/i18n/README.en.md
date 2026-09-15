@@ -36,6 +36,7 @@ DockDesk exists for that audience: **people who develop on projects that use Doc
 - **Partial routines**: a fixed command (e.g. `cd /home/project`) asks for its complement at run time (e.g. `&& npm install`);
 - **`[--]` marker**: write `[--]` in the command to say **where** the complement goes instead of only at the end — the typed text fills **every** marker (e.g. `cd /app/[--] && npm run [--]`);
 - **Name and command wrap on their own** when they get long, and the line breaks you type (Enter) are honoured when running;
+- The editor fields **grow with the text** and have a **resize handle**: once you drag it, the height is the one you picked;
 - Each routine runs in **its own terminal attached to its row**, visible while the process lives (perfect for `npm run dev`), with a **running indicator**, minimize and a stop button;
 - Saved by container name: they survive container recreation.
 
