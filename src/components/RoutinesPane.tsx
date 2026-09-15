@@ -324,8 +324,10 @@ function CommandText({
 
 /**
  * Campo de texto que cresce junto com o conteúdo, então nome e comando longos
- * quebram a linha e continuam visíveis inteiros. Enter quebra a linha;
- * Ctrl/Cmd+Enter envia o formulário.
+ * quebram a linha e continuam visíveis inteiros. Também aceita a alça de
+ * redimensionar do canto: assim que a pessoa arrasta, a altura passa a ser a
+ * dela e o cálculo automático para de mexer no campo — os dois brigariam pelo
+ * mesmo `style.height`. Enter quebra a linha; Ctrl/Cmd+Enter envia o formulário.
  */
 function AutoTextarea({
   value,
@@ -347,13 +349,32 @@ function AutoTextarea({
   maxHeight?: number;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  // última altura que NÓS aplicamos; qualquer valor diferente disso só pode ter
+  // vindo da alça de redimensionar
+  const autoHeight = useRef<number | null>(null);
+  const resizedByUser = useRef(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // a altura fica sempre explícita, então mudar a largura da janela não mexe
+    // nela: todo disparo com altura diferente é arrasto de alça mesmo
+    const observer = new ResizeObserver(() => {
+      if (resizedByUser.current || autoHeight.current === null) return;
+      // 1px de tolerância: zoom e layout fracionado arredondam o valor
+      if (Math.abs(el.clientHeight - autoHeight.current) > 1) resizedByUser.current = true;
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // remede a altura a cada mudança: some com a barra de rolagem até o teto
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || resizedByUser.current) return;
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
+    autoHeight.current = el.clientHeight;
   }, [value, maxHeight]);
 
   return (
