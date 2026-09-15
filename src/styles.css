@@ -1114,6 +1114,28 @@ button { font-family: inherit; }
   max-width: 100%;
 }
 
+/* rótulo do complemento: texto à esquerda, atalho de preencher à direita */
+.complement-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* aviso de marcador sem valor: o comando roda, mas com buraco */
+.complement-warn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--yellow);
+  line-height: 1.5;
+}
+.complement-warn svg { flex-shrink: 0; }
+
 /* caixa de dica do editor de rotinas */
 .routine-tips {
   display: flex;

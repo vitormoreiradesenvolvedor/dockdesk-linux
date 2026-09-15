@@ -14,6 +14,7 @@ import {
   ListChecks,
   Loader2,
   Lightbulb,
+  AlertTriangle,
   Square,
   X,
   ChevronDown,
@@ -24,6 +25,8 @@ import { InlineTerminal } from './InlineTerminal';
 import {
   ROUTINE_PLACEHOLDER,
   buildRoutineCommand,
+  countCommandPlaceholders,
+  extractComplementValues,
   hasCommandPlaceholder,
   isPartialRoutine,
   normalizeCommand,
@@ -515,8 +518,15 @@ function ComplementModal({
   const { t } = useI18n();
   const [complement, setComplement] = useState('');
   const inline = hasCommandPlaceholder(routine.command);
+  const slots = countCommandPlaceholders(routine.command);
+  const multi = slots > 1;
 
-  // com o campo vazio o preview ainda mostra o marcador, então dá para ver
+  // valor por valor só existe quando a pessoa escreveu [-…-]; texto solto
+  // continua sendo um valor único que preenche todos os marcadores
+  const values = inline ? extractComplementValues(complement) : null;
+  const emptySlots = values ? values.slice(0, slots).filter((v) => !v.trim()).length : 0;
+
+  // com o campo vazio o preview ainda mostra os marcadores, então dá para ver
   // exatamente em quantos lugares o complemento vai entrar
   const preview = complement.trim()
     ? buildRoutineCommand(routine.command, complement)
@@ -531,15 +541,42 @@ function ComplementModal({
     <Modal title={t('complement_title', { label: routine.label })} onClose={onCancel}>
       <form onSubmit={submit} className="modal-form" data-testid="complement-modal">
         <p className="term-hint" style={{ margin: 0 }}>
-          {inline ? t('complement_inline_hint') : t('complement_hint')}
+          {!inline
+            ? t('complement_hint')
+            : multi
+              ? t('complement_multi_hint', { n: slots })
+              : t('complement_inline_hint')}
         </p>
         <label>
-          {inline ? t('complement_inline_label') : t('complement_label')}
+          <span className="complement-label-row">
+            {!inline
+              ? t('complement_label')
+              : multi
+                ? t('complement_multi_label')
+                : t('complement_inline_label')}
+            {multi && (
+              <button
+                type="button"
+                className="btn sm"
+                title={t('complement_fill_each_title')}
+                onClick={() => setComplement(normalizeCommand(routine.command))}
+                data-testid="complement-fill-each"
+              >
+                <ListChecks size={12} /> {t('complement_fill_each')}
+              </button>
+            )}
+          </span>
           <AutoTextarea
             value={complement}
             onChange={setComplement}
             onSubmit={submit}
-            placeholder={inline ? t('complement_inline_ph') : '&& npm install'}
+            placeholder={
+              !inline
+                ? '&& npm install'
+                : multi
+                  ? t('complement_multi_ph')
+                  : t('complement_inline_ph')
+            }
             testId="complement-input"
             autoFocus
           />
@@ -547,6 +584,12 @@ function ComplementModal({
         <div className="complement-preview" data-testid="complement-preview">
           <CommandText className="complement-code" text={preview} />
         </div>
+        {emptySlots > 0 && (
+          <p className="complement-warn" data-testid="complement-warn">
+            <AlertTriangle size={14} />
+            {t('complement_empty_slots', { n: emptySlots })}
+          </p>
+        )}
         <div className="modal-actions">
           <button type="button" className="btn" onClick={onCancel}>
             {t('cancel')}

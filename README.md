@@ -35,6 +35,7 @@ O DockDesk existe para esse público: **quem desenvolve em projetos que usam Doc
 - Crie botões como `htop`, `npm run dev` ou `composer install`;
 - **Rotinas parciais**: o comando fixo (ex.: `cd /home/projeto`) pede o complemento na hora de executar (ex.: `&& npm install`);
 - **Marcador `[--]`**: escreva `[--]` no comando para dizer **onde** o complemento entra, em vez de só no fim — o texto digitado preenche **todos** os marcadores (ex.: `cd /app/[--] && npm run [--]`);
+- **Um valor por marcador**: na hora de executar, escreva um `[-valor-]` para cada marcador e cada um recebe um texto diferente — `cd [--] && ls [--]` com `[-/home-] [-/root-]` roda `cd /home && ls /root`. Dentro do `[-…-]` vale qualquer caractere: espaço, vírgula, ponto, barra, barra invertida e o próprio `-`;
 - **Nome e comando quebram a linha sozinhos** quando ficam longos, e as quebras que você digitar (Enter) são respeitadas na execução;
 - Os campos do editor **crescem junto com o texto** e têm **alça de redimensionar**: arrastou, a altura passa a ser a que você escolheu;
 - Cada rotina roda em um **terminal próprio atrelado à sua linha**, que fica visível enquanto o processo vive (perfeito para `npm run dev`), com **indicador de execução**, minimizar e botão de parar;
